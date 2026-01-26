@@ -1,4 +1,4 @@
-from .db import db
+from db import db
 from flask_security import UserMixin, RoleMixin
 from datetime import datetime
 from enum import Enum
