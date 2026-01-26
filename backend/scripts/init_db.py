@@ -35,9 +35,9 @@ with app.app_context():
     try:
         db.session.commit()
         print("Database initialized with roles in roles table and users in users table.") 
-    except:
+    except Exception as e:
         db.session.rollback()
-        print("Error committing roles")
+        print(f"Error committing roles: {e}")
 
     # Create an admin user
     admin_user = datastore.find_user(email="admin@study")
@@ -54,6 +54,6 @@ with app.app_context():
     try:
         db.session.commit() 
         print("Database initialized with default users and roles.")
-    except:
+    except Exception as e:
         db.session.rollback()
-        print("Error committing user roles")
+        print(f"Error committing user roles: {e}")
