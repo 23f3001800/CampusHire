@@ -83,6 +83,9 @@ class Company(db.Model):
     description = db.Column(db.Text)
     hr_email = db.Column(db.String(120))
     hr_contact = db.Column(db.String(15))
+    department = db.Column(db.String(100))
+    designation = db.Column(db.String(100))
+    
     
     # Company verification
     approval_status = db.Column(db.String(20), default='Pending')  # 'Pending', 'Approved', 'Rejected'

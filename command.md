@@ -13,6 +13,11 @@ pip3 install flask flask-sqlalchemy flask-security-too
 # npm install
 # npm run dev
 
+### initalise datbase
+python3 -m scripts.init_db
+## seed dummy data in database
+python3 -m scripts.seed_data
+
 #### git tracking file commands
 # git init
 git add . or filename

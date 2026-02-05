@@ -1,186 +1,117 @@
 <template>
-  <footer class="bg-dark text-light mt-5">
-    <!-- Main Footer Content -->
+  <footer class="bg-dark text-light mt-5 footer-custom">
     <div class="container py-5">
       <div class="row g-4">
+
         <!-- Company Info -->
         <div class="col-lg-3 col-md-6">
           <h5 class="fw-bold mb-3">
             <i class="bi bi-briefcase-fill me-2"></i>CampusHire
           </h5>
-          <p class="text-muted small mb-3">
-            Connecting talented students with leading companies for career opportunities.
+          <p class="small text-secondary">
+            Connecting talented students with leading companies.
           </p>
-          <div class="d-flex gap-3">
-            <a href="#" class="text-muted text-decoration-none hover-link">
-              <i class="bi bi-facebook"></i>
-            </a>
-            <a href="#" class="text-muted text-decoration-none hover-link">
-              <i class="bi bi-twitter"></i>
-            </a>
-            <a href="#" class="text-muted text-decoration-none hover-link">
-              <i class="bi bi-linkedin"></i>
-            </a>
-            <a href="#" class="text-muted text-decoration-none hover-link">
-              <i class="bi bi-instagram"></i>
-            </a>
-          </div>
         </div>
 
         <!-- Quick Links -->
         <div class="col-lg-3 col-md-6">
           <h6 class="fw-bold mb-3">Quick Links</h6>
-          <ul class="list-unstyled">
-            <li class="mb-2">
-              <router-link to="/" class="text-muted text-decoration-none hover-link small">
-                <i class="bi bi-chevron-right me-1"></i>Home
-              </router-link>
-            </li>
-            <li class="mb-2">
-              <router-link to="/products" class="text-muted text-decoration-none hover-link small">
-                <i class="bi bi-chevron-right me-1"></i>Browse Jobs
-              </router-link>
-            </li>
-            <li class="mb-2">
-              <router-link to="/about" class="text-muted text-decoration-none hover-link small">
-                <i class="bi bi-chevron-right me-1"></i>About Us
-              </router-link>
-            </li>
-            <li class="mb-2">
-              <router-link to="/contact" class="text-muted text-decoration-none hover-link small">
-                <i class="bi bi-chevron-right me-1"></i>Contact
-              </router-link>
-            </li>
+          <ul class="list-unstyled footer-links">
+            <li><router-link to="/">Home</router-link></li>
+            <li><router-link to="/jobs">Browse Jobs</router-link></li>
+            <li><router-link to="/about">About</router-link></li>
+            <li><router-link to="/contact">Contact</router-link></li>
           </ul>
         </div>
 
-        <!-- For Students -->
+        <!-- Students -->
         <div class="col-lg-3 col-md-6">
           <h6 class="fw-bold mb-3">For Students</h6>
-          <ul class="list-unstyled">
-            <li class="mb-2">
-              <a href="#" class="text-muted text-decoration-none hover-link small">
-                <i class="bi bi-chevron-right me-1"></i>Create Profile
-              </a>
-            </li>
-            <li class="mb-2">
-              <a href="#" class="text-muted text-decoration-none hover-link small">
-                <i class="bi bi-chevron-right me-1"></i>Career Resources
-              </a>
-            </li>
-            <li class="mb-2">
-              <a href="#" class="text-muted text-decoration-none hover-link small">
-                <i class="bi bi-chevron-right me-1"></i>Interview Tips
-              </a>
-            </li>
-            <li class="mb-2">
-              <a href="#" class="text-muted text-decoration-none hover-link small">
-                <i class="bi bi-chevron-right me-1"></i>Internships
-              </a>
-            </li>
+          <ul class="list-unstyled footer-links">
+            <li><a href="#">Create Profile</a></li>
+            <li><a href="#">Career Resources</a></li>
+            <li><a href="#">Interview Tips</a></li>
           </ul>
         </div>
 
-        <!-- Newsletter -->
+        <!-- Contact + Subscribe -->
         <div class="col-lg-3 col-md-6">
           <h6 class="fw-bold mb-3">Stay Updated</h6>
-          <p class="text-muted small mb-3">
-            Subscribe to get the latest job opportunities and career tips.
-          </p>
-          <div class="input-group input-group-sm">
+
+          <div class="input-group input-group-sm mb-3">
             <input
               type="email"
               class="form-control bg-secondary border-0 text-light"
               placeholder="Your email"
-              aria-label="Email"
             />
-            <button class="btn btn-primary" type="button">
+            <button class="btn btn-primary">
               <i class="bi bi-send"></i>
             </button>
           </div>
+
         </div>
+
       </div>
 
-      <hr class="bg-secondary my-4" />
+      <hr class="footer-hr" />
 
       <!-- Bottom Footer -->
       <div class="row align-items-center">
-        <div class="col-md-6">
-          <p class="text-muted small mb-0">
-            &copy; {{ year }} CampusHire — Built with <i class="bi bi-heart-fill text-danger"></i> by AppDev Team
-          </p>
+        <div class="col-md-6 small text-secondary">
+          © {{ year }} CampusHire — Built with ❤️
         </div>
-        <div class="col-md-6 text-md-end">
-          <div class="d-flex gap-3 justify-content-md-end flex-wrap">
-            <router-link to="/privacy" class="text-muted small text-decoration-none hover-link">
-              Privacy Policy
-            </router-link>
-            <span class="text-muted">•</span>
-            <router-link to="/terms" class="text-muted small text-decoration-none hover-link">
-              Terms of Service
-            </router-link>
-            <span class="text-muted">•</span>
-            <a href="#" class="text-muted small text-decoration-none hover-link">
-              Sitemap
-            </a>
-          </div>
+
+        <div class="col-md-6 text-md-end footer-bottom-links">
+          <router-link to="/privacy">Privacy</router-link>
+          <router-link to="/terms">Terms</router-link>
+          <a href="#">Sitemap</a>
         </div>
       </div>
+
     </div>
   </footer>
 </template>
 
+
+
 <script>
 export default {
   name: "Footer",
-  data() {
-    return {
-      year: 2025,
-    };
-  },
+  computed: {
+    year() {
+      return new Date().getFullYear();
+    }
+  }
 };
 </script>
 
+
 <style scoped>
-footer {
-  margin-top: auto;
+.footer-custom {
+  background: #121212;
 }
 
-.hover-link {
-  transition: color 0.3s ease, transform 0.3s ease;
+.footer-links a,
+.footer-bottom-links a {
+  color: #cfcfcf;
+  text-decoration: none;
+  margin-right: 12px;
+  transition: 0.25s;
 }
 
-.hover-link:hover {
-  color: #0d6efd !important;
-  transform: translateX(5px);
+.footer-links a:hover,
+.footer-bottom-links a:hover {
+  color: white;
 }
 
-.input-group-sm .form-control {
-  font-size: 0.875rem;
-}
-
-.input-group-sm .form-control::placeholder {
-  color: #adb5bd;
-}
-
-.btn-primary {
-  background-color: #0d6efd;
-  border-color: #0d6efd;
-  padding: 0.375rem 0.75rem;
-}
-
-.btn-primary:hover {
-  background-color: #0b5ed7;
-  border-color: #0b5ed7;
-}
-
-hr {
-  opacity: 0.1;
+.footer-hr {
+  border-color: #2a2a2a;
+  opacity: 1;
 }
 
 @media (max-width: 768px) {
-  .col-md-6:last-child {
-    margin-top: 1rem;
+  .footer-bottom-links {
+    margin-top: 10px;
     text-align: left !important;
   }
 }

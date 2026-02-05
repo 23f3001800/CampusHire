@@ -1,5 +1,5 @@
-from backend.app import app
-from backend.models import db
+from app import app
+from models import db
 from flask_security.datastore import SQLAlchemyUserDatastore
 from flask_security.utils import hash_password
 
@@ -13,21 +13,21 @@ with app.app_context():
     student_role = datastore.find_or_create_role("student", description = "student user")
     company_role = datastore.find_or_create_role("company", description = "company user")
 
-    if not datastore.find_user(email = "admin@study"):
+    if not datastore.find_user(email = "admin@study.com"):
         datastore.create_user(
-            email = "admin@study",
+            email = "admin@study.com",
             name = "admin_01",
             password = hash_password('123456'),
         )
-    if not datastore.find_user(email = "student@study"):
+    if not datastore.find_user(email = "student@study.com"):
         datastore.create_user(
-            email = "student@study",
+            email = "student@study.com",
             name = "student_01",
             password = hash_password('123456'),
         )
-    if not datastore.find_user(email = "abc@company"):
+    if not datastore.find_user(email = "abc@company.com"):
         datastore.create_user(
-            email = "abc@company",
+            email = "abc@company.com",
             name = "company_01",
             password = hash_password('123456'),
         ) 
@@ -40,9 +40,9 @@ with app.app_context():
         print(f"Error committing roles: {e}")
 
     # Create an admin user
-    admin_user = datastore.find_user(email="admin@study")
-    student_user = datastore.find_user(email="student@study")
-    company_user = datastore.find_user(email="abc@company")
+    admin_user = datastore.find_user(email="admin@study.com")
+    student_user = datastore.find_user(email="student@study.com")
+    company_user = datastore.find_user(email="abc@company.com")
 
     admin_role = datastore.find_role("admin")
     student_role = datastore.find_role("student")

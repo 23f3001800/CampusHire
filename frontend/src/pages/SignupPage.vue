@@ -28,11 +28,11 @@
               <li class="nav-item" role="presentation">
                 <button
                   class="nav-link"
-                  :class="{ active: role === 'recruiter' }"
-                  @click="role = 'recruiter'"
+                  :class="{ active: role === 'company' }"
+                  @click="role = 'company'"
                   type="button"
                 >
-                  <i class="bi bi-briefcase me-1"></i>Recruiter
+                  <i class="bi bi-briefcase me-1"></i>recruiter
                 </button>
               </li>
             </ul>
@@ -150,7 +150,7 @@
               </template>
 
               <!-- Recruiter specific fields -->
-              <template v-if="role === 'recruiter'">
+              <template v-if="role === 'company'">
                 <div class="col-12">
                   <label class="form-label fw-bold" for="companyName">Company Name</label>
                   <input
@@ -304,7 +304,7 @@ export default {
             graduation: Number(this.graduation),
             phone: this.phone,
           };
-        } else if (this.role === "recruiter") {
+        } else if (this.role === "company") {
           payload.recruiter = {
             companyName: this.companyName,
             department: this.department,

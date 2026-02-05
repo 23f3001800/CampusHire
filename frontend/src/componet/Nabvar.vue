@@ -23,18 +23,22 @@
       <!-- Navbar Links -->
       <div class="collapse navbar-collapse" id="navbarNav">
         <ul class="navbar-nav ms-auto">
-          <li class="nav-item">
+          <li class="nav-item" v-if="!isLoggedIn">
             <router-link to="/" class="nav-link active">Home</router-link>
           </li>
-          <li class="nav-item">
-            <router-link to="/jobs" class="nav-link">Jobs</router-link>
+          <li class="nav-item" v-if="isLoggedIn">
+            <router-link :to="`/${role}/${id}`" class="nav-link active">Home</router-link>
           </li>
-          <li class="nav-item">
-            <router-link to="/" class="nav-link">about</router-link>
+          <li v-for="item in roleLinks" :key="item.path" class="nav-item">
+            <router-link :to="item.path" class="nav-link">
+              {{ item.name }}
+            </router-link>
           </li>
-          
+          <li>
+            <router-link to="/about" class="nav-link">about</router-link>
+          </li>
           <!-- User Menu Dropdown -->
-          <li class="nav-item dropdown">
+          <li class="nav-item dropdown" v-if="isLoggedIn">
             <a
               class="nav-link dropdown-toggle"
               href="#"
@@ -47,19 +51,14 @@
               Account
             </a>
             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
-              <li>
+               <li>
                 <router-link to="/profile" class="dropdown-item">
-                  <i class="bi bi-person me-2"></i>My Profile
+                  <i class="bi bi-person me-2"></i>Profile
                 </router-link>
               </li>
-              <li>
-                <router-link to="/applications" class="dropdown-item">
-                  <i class="bi bi-file-text me-2"></i>Applications
-                </router-link>
-              </li>
-              <li>
-                <router-link to="/saved-jobs" class="dropdown-item">
-                  <i class="bi bi-bookmark me-2"></i>Saved Jobs
+              <li v-for="item in accountLinks" :key="item.path">
+                <router-link :to="item.path" class="dropdown-item">
+                  {{ item.name }}
                 </router-link>
               </li>
               <li><hr class="dropdown-divider" /></li>
@@ -72,9 +71,9 @@
           </li>
 
           <!-- Sign In/Up Button -->
-          <li class="nav-item ms-2">
+          <li v-if="!isLoggedIn" class="nav-item ms-lg-2">
             <router-link to="/login" class="btn btn-primary btn-sm">
-              <i class="bi bi-box-arrow-in-right me-1"></i>Sign In
+              Sign In
             </router-link>
           </li>
         </ul>
@@ -83,17 +82,68 @@
   </nav>
 </template>
 
+
 <script>
+import router from '@/router';
+
 export default {
   name: "Navbar",
+  data() {
+    return {
+      role: localStorage.getItem("user") ? JSON.parse(localStorage.getItem("user")).role : null,
+      id: localStorage.getItem("user") ? JSON.parse(localStorage.getItem("user")).id : null,
+      isLoggedIn: !!localStorage.getItem("token")
+    };
+  },
+
+  computed: {
+    roleLinks() {
+      if (this.role === "admin" && this.isLoggedIn) {
+        return [
+          { name: "Students", path: "/admin/students" },
+          { name: "Companies", path: "/admin/companies" }
+        ];
+      }
+      if (this.role === "student" && this.isLoggedIn) {
+        return [
+          { name: "History", path: "/student/history" }
+        ];
+      }
+
+      if (this.role === "company" && this.isLoggedIn) {
+        this.$router.push(`/company/${this.id}`);
+        return [
+          { name: "Create Job", path: "/company/create_job" }
+        ];
+      }
+
+      return [];
+    },
+
+    accountLinks() {
+      if (this.role === "student" && this.isLoggedIn) {
+        return [
+          { name: "Applications", path: "/student/applications/history" },
+          { name: "Saved Jobs", path: "/saved-jobs" }
+        ];
+      }
+
+      if (this.role === "company" && this.isLoggedIn) {
+        return [
+          { name: "My Drives", path: "/company" }
+        ];
+      }
+
+      return [];
+    }
+  },
+
   methods: {
     logout() {
-      // Add logout logic here
-      console.log("Logout clicked");
-      // Example: clear authentication and redirect
-      // this.$router.push("/login");
-    },
-  },
+      localStorage.clear();
+      this.$router.push("/login");
+    }
+  }
 };
 </script>
 

@@ -3,7 +3,7 @@ import api from "@/utils/api";
 
 export const useUserStore = defineStore("user", {
   state: () => ({
-    token: localStorage.getItem("access_token") || null,
+    token: localStorage.getItem("token") || null,
     user: (() => {
       try {
         const raw = localStorage.getItem("user");
@@ -18,17 +18,16 @@ export const useUserStore = defineStore("user", {
   getters: {
     isAuthenticated: (state) => !!state.token,
     role: (state) => (state.user && state.user.role ? state.user.role : null),
-    isAdmin: (state) => (state.user && state.user.role) === "admin",
-
+    id: (state) => state.user?.id || null,
   },
 
   actions: {
     setToken(token) {
       this.token = token;
       if (token) {
-        localStorage.setItem("access_token", token);
+        localStorage.setItem("token", token);
       } else {
-        localStorage.removeItem("access_token");
+        localStorage.removeItem("token");
       }
     },
 
@@ -48,22 +47,17 @@ export const useUserStore = defineStore("user", {
     logout() {
       this.setToken(null);
       this.setUser(null);
-      // Optionally, navigate to login page from components that call logout
+      this.$router.push("/login");
     },
 
-    // Convenience: set token + user directly (e.g., after social login)
     loginWithToken(token, user = null) {
       this.setToken(token);
       if (user) this.setUser(user);
     },
 
-    // Call an auth endpoint to login. Default endpoint is '/auth/login'.
-    // Expects the server response to include a token and user info. If your
-    // API returns a different shape adjust the extraction logic below.
     async loginWithCredentials(endpoint = "/auth/login", credentials = {}) {
       const res = await api.post(endpoint, credentials);
 
-      // Try common response shapes: { access_token, user } or { token, user }
       const token =
         res &&
         (res.access_token ||

@@ -8,31 +8,23 @@ import api from "@/utils/api";
 
 export const useAdminStore = defineStore("admin", {
   state: () => ({
-    pendingCompanies: [],
     students: [],
     companies: [],
     reports: [],
     loading: false,
     }), 
     actions: {
-        async fetchPendingCompanies() {
-            this.loading = true;
-            try {
-                const res = await api.get("/admin/pending-companies");
-                this.pendingCompanies = res.data;
-            } finally {
-                this.loading = false;
-            }
-        },
-
         async fetchStudents() {
+            const token = localStorage.getItem("token");
             const res = await api.get("/admin/students");
-            this.students = res.data;
+            this.students = res;
+            console.log(res);
         },
 
         async fetchCompanies() {
             const res = await api.get("/admin/companies");
-            this.companies = res.data;
+            this.companies = res;
+            console.log(res);
         },
         async fetchReports() {
             const res = await api.get("/admin/reports");

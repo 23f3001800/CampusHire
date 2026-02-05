@@ -11,36 +11,6 @@
         </div>
 
         <div class="card-body p-4">
-          <!-- Role Selection -->
-          <div class="mb-4">
-            <label class="form-label fw-bold">Login As</label>
-            <div class="btn-group w-100" role="group">
-              <input
-                type="radio"
-                class="btn-check"
-                name="role"
-                id="student"
-                value="student"
-                v-model="role"
-              />
-              <label class="btn btn-outline-primary" for="student">
-                <i class="bi bi-mortarboard me-1"></i>Student
-              </label>
-
-              <input
-                type="radio"
-                class="btn-check"
-                name="role"
-                id="recruiter"
-                value="recruiter"
-                v-model="role"
-              />
-              <label class="btn btn-outline-primary" for="recruiter">
-                <i class="bi bi-briefcase me-1"></i>Recruiter
-              </label>
-            </div>
-          </div>
-
           <!-- Login Form -->
           <form @submit.prevent="submitLogin" novalidate>
             <div class="mb-3">
@@ -50,7 +20,7 @@
                 v-model="email"
                 type="email"
                 class="form-control form-control-lg"
-                placeholder="you@example.com"
+                placeholder="you@study.com"
                 required
               />
             </div>
@@ -144,15 +114,30 @@ export default {
     return {
       email: "",
       password: "",
-      role: "student",
       rememberMe: false,
       loading: false,
       error: "",
       userStore: null,
+      role: "",
+      id: null,
+    };
+  },
+  setup() {
+    const userStore = useUserStore();
+    return {
+      userStore,
     };
   },
   created() {
-    this.userStore = useUserStore();
+      if (this.userStore.isAuthenticated) {
+      if (this.userStore.role === "admin") {
+        this.$router.push(`/admin/${this.userStore.id}`);
+      } else if (this.userStore.role === "company") {
+        this.$router.push(`/company/${this.userStore.id}`);
+      } else if (this.userStore.role === "student") {
+        this.$router.push(`/student/${this.userStore.id}`);
+      }
+    }
   },
   methods: {
     async submitLogin() {
@@ -163,9 +148,17 @@ export default {
         await this.userStore.loginWithCredentials("/auth/login", {
           email: this.email,
           password: this.password,
-          role: this.role,
         });
-        this.$router.push("/products");
+        //this.$router.push("/${this.userStore.role}/${this.userStore.id}");
+        if (this.userStore.role === "admin") {
+          this.$router.push(`/admin/${this.userStore.id}`);
+        } else if (this.userStore.role === "company") {
+          this.$router.push(`/company/${this.userStore.id}`);
+        } else if (this.userStore.role === "student") {
+          this.$router.push(`/student/${this.userStore.id}`);
+        } else {
+          this.error = "Unknown user role";
+        }
       } catch (e) {
         this.error = e.message || "Login failed";
       } finally {
@@ -191,17 +184,6 @@ export default {
 
 .card-header {
   background: linear-gradient(45deg, #0d6efd, #0dcaf0) !important;
-}
-
-.btn-group .btn-outline-primary {
-  border-color: #0d6efd;
-  color: #0d6efd;
-}
-
-.btn-group .btn-check:checked + .btn-outline-primary {
-  background-color: #0d6efd;
-  border-color: #0d6efd;
-  color: white;
 }
 
 .form-control-lg {
