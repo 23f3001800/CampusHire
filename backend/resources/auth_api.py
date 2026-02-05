@@ -16,6 +16,10 @@ def login():
         return jsonify({"message": "invalid input"}), 400
     
     user = User.query.filter_by(email = email).first_or_404()
+    print("Password:", password)
+    print("Password length:", len(password.encode("utf-8")))
+    print("Stored hash:", user.password)
+    print("Stored hash length:", len(user.password.encode("utf-8")))
 
     if not verify_password(password, user.password):
         return jsonify({"message": "invalid credentials"}), 401
@@ -40,16 +44,17 @@ def register():
 
     active=True
 
+    # Map "recruiter" to "company"
     if (not name or not email or not password or not role in ["student", "company"]):
         return jsonify({"message": "invalid input"}), 400
-    
+
     if role == "company":
         active = False
 
     user = User.query.filter_by(email=email).first()
     if user:
         return jsonify({"message": "user already exists"}), 400
-    
+
     datastore = current_app.datastore
 
     datastore.create_user(name = name, email = email, password = hash_password(password), active = active)
@@ -58,16 +63,49 @@ def register():
     except Exception as e:
         db.session.rollback()
         return {"message": f"Error creating user: {e}"}, 400
-    
-    role = datastore.find_role(role)
+
+    role_obj = datastore.find_role(role)
     user = datastore.find_user(email = email)
-    datastore.add_role_to_user(user, role)
+    datastore.add_role_to_user(user, role_obj)
     try:
         db.session.commit()
     except Exception as e:
         db.session.rollback()
         return {"message": f"Error assigning role: {e}"}, 400
-    
+
+    # Create profile based on role
+    if role == "student" and "student" in data:
+        student_data = data["student"]
+        student = Student(
+            user_id=user.id,
+            roll_number=student_data.get("rollNumber"),
+            branch=student_data.get("branch"),
+            graduation_year=int(student_data.get("graduation", 0)),
+            phone=student_data.get("phone")
+        )
+        db.session.add(student)
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            return {"message": f"Error creating student profile: {e}"}, 400
+
+    elif role == "company" and "recruiter" in data:
+        company_data = data["recruiter"]
+        company = Company(
+            user_id=user.id,
+            company_name=company_data.get("companyName"),
+            department=company_data.get("department"),
+            designation=company_data.get("designation"),
+            hr_contact=company_data.get("phone")
+        )
+        db.session.add(company)
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            return {"message": f"Error creating company profile: {e}"}, 400
+
     return jsonify({
         "id": user.id,
         "email": user.email,

@@ -6,7 +6,7 @@ const api = {
     // ensure endpoint starts with a slash
     const path = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
     const url = `${baseURL.replace(/\/$/, "")}${path}`;
-    const token = localStorage.getItem("access_token");
+    const token = localStorage.getItem("token");
 
     const headers = {
       "Content-Type": "application/json",
@@ -14,7 +14,7 @@ const api = {
     };
 
     if (token) {
-      headers["Authorization"] = `Bearer ${token}`;
+      headers["Authentication-Token"] = token;
     }
 
     const config = {
@@ -26,7 +26,7 @@ const api = {
       const response = await fetch(url, config);
 
       if (response.status === 401) {
-        localStorage.removeItem("access_token");
+        localStorage.removeItem("token");
         localStorage.removeItem("user");
         window.location.href = "/login";
         throw new Error("Session expired. Please login again.");

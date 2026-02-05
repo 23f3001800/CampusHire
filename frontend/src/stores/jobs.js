@@ -20,8 +20,8 @@ export const useJobsStore = defineStore("jobs", {
         async fetchJobs() {
             this.loading = true
             try {
-                const res = await api.get("/jobs", { params: this.filters })
-                this.jobs = res.data
+                const res = await api.get("/admin/jobs", { params: this.filters })
+                this.jobs = res
             } finally {
                 this.loading = false
             }
