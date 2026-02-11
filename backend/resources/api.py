@@ -84,6 +84,7 @@ class companyresource(Resource):
         if not company:
             return {'message': 'Company not found'}, 404
         return marshal(company, company_fields), 200
+    
     @auth_required('token')
     @roles_required('company')
     def put(self, company_id):

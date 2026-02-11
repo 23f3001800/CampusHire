@@ -18,6 +18,8 @@ const router = createRouter({
     {path: "/student/:id", component: () => import("@/pages/student/StudentHomePage.vue")},
     {path: "/company/:id", component: () => import("@/pages/company/CompanyHomePage.vue")},
     { path: "/about", component: () => import("@/pages/AboutPage.vue") },
+    {path:  "/student/profile",component: ()=> import("@/pages/student/ProfilePage.vue")},
+    {path:  "/company/profile",component: ()=> import("@/pages/company/ProfilePage.vue")},
   ],
 });
 

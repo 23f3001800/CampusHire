@@ -23,16 +23,19 @@ def login():
 
     if not verify_password(password, user.password):
         return jsonify({"message": "invalid credentials"}), 401
-    
+
+
     return jsonify({
         "token": user.get_auth_token(),
         "user": {
             "id": user.id,
             "email": user.email,
             "name": user.name,
-            "role": user.roles[0].name
+            "role": user.roles[0].name,
+            "company_id":user.company_profile.id if user.roles[0].name == "company" else None,
+            "student_id" : user.student_profile.id if user.roles[0].name == "student" else None
         }
-        }), 200
+    }), 200
 
 @auth_bp.route('/register', methods=['POST'])
 def register():

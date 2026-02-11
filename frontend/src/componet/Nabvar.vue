@@ -51,11 +51,6 @@
               Account
             </a>
             <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
-               <li>
-                <router-link to="/profile" class="dropdown-item">
-                  <i class="bi bi-person me-2"></i>Profile
-                </router-link>
-              </li>
               <li v-for="item in accountLinks" :key="item.path">
                 <router-link :to="item.path" class="dropdown-item">
                   {{ item.name }}
@@ -111,7 +106,6 @@ export default {
       }
 
       if (this.role === "company" && this.isLoggedIn) {
-        this.$router.push(`/company/${this.id}`);
         return [
           { name: "Create Job", path: "/company/create_job" }
         ];
@@ -124,13 +118,15 @@ export default {
       if (this.role === "student" && this.isLoggedIn) {
         return [
           { name: "Applications", path: "/student/applications/history" },
-          { name: "Saved Jobs", path: "/saved-jobs" }
+          { name: "Saved Jobs", path: "/saved-jobs" },
+          { name: "profile", path: "/student/profile"}
         ];
       }
 
       if (this.role === "company" && this.isLoggedIn) {
         return [
-          { name: "My Drives", path: "/company" }
+          { name: "My Drives", path: "/company/drive" },
+          { name : "profile", path: "company/profile"}
         ];
       }
 
