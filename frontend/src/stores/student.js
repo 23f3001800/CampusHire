@@ -2,7 +2,7 @@ import { defineStore } from "pinia"
 import api from "@/utils/api"
 
 
-export const StudentStore = defineStore("student", {
+export const useStudentStore = defineStore("student", {
   state: () => ({
     profile: null,
     applications: [],
@@ -11,10 +11,10 @@ export const StudentStore = defineStore("student", {
   }),
 
     actions: {
-        async fetchProfile() {
+        async fetchProfile(id) {
         this.loading = true
         try {
-            const res = await api.get("/student/profile")
+            const res = await api.get(`"/student/${id}"`)
             this.profile = res.data
         } finally {
             this.loading = false

@@ -34,6 +34,7 @@ company_fields = {
     'industry': fields.String,
     'location': fields.String,
     'website': fields.String,
+    "approval_status":fields.String,
     'user': fields.Nested(user_fields)
 }
 

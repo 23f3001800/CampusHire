@@ -6,7 +6,7 @@ import { defineStore } from "pinia"
 import api from "@/utils/api"
 
 
-export const CompanyStore = defineStore("company", {
+export const useCompanyStore = defineStore("company", {
     state: () => ({
         company_profile: null,
         jobs: [],
@@ -14,33 +14,35 @@ export const CompanyStore = defineStore("company", {
         loading: false
     }),
     actions: {
-        async fetchCompanyProfile() {
-            this.loading = true
+        async fetchCompanyProfile(id) {
+            this.loadingProfile = true;
             try {
-                const res = await api.get("/company/profile")
-                this.company_profile = res.data
+                const res = await api.get(`/company/${id}`);
+                this.company_profile = res;
+            } catch (e) {
+                this.company_profile = null;
             } finally {
-                this.loading = false
+                this.loadingProfile = false;
             }
-        },
+        }, 
 
         async fetchJobs() {
-            const res = await api.get("/company/jobs")
-            this.jobs = res.data
+            const res = await api.get("/company/jobs");
+            this.jobs = res.data;
         }, 
 
         async fetchApplicants(jobId) {
-            const res = await api.get(`/company/applicants/${jobId}`)
-            this.applicants[jobId] = res.data
+            const res = await api.get(`/company/applicants/${jobId}`);
+            this.applicants[jobId] = res.data;
         },
 
         async createJob(jobData) {
-            await api.post("/company/jobs", jobData)
-            await this.fetchJobs()
+            await api.post("/company/jobs", jobData);
+            await this.fetchJobs();
         },
         async updateApplicationStatus(jobId, applicantId, status) {
-            await api.put(`/company/applicants/${jobId}/${applicantId}`, { status })
-            await this.fetchApplicants(jobId)
+            await api.put(`/company/applicants/${jobId}/${applicantId}`, { status });
+            await this.fetchApplicants(jobId);
         }
     }
 })
