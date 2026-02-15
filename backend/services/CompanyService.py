@@ -1,51 +1,94 @@
-# create_profile(user_id, data)
-# post_job(company_id, data)
-# review_applicants(job_id)
+from models import Company, PlacementDrive, Application, Placement, db
+from datetime import datetime
 
-
-from models import Company, JobPosition, db
 
 class CompanyService:
+
+    UPDATABLE = [
+        'company_name', 'industry', 'company_size',
+        'location', 'website', 'description',
+        'hr_email', 'hr_contact', 'department', 'designation',
+    ]
+
+    # ── Company Profile ─────────────────────────────────────────────────────
+
     @staticmethod
-    def get_all_companies():
+    def get_all():
         return Company.query.all()
-    
+
     @staticmethod
-    def get_company_by_id(company_id):
+    def get_by_id(company_id):
         return Company.query.get(company_id)
 
-    # @staticmethod
-    # def create_profile(user_id, data):
-    #     new_company = Company(user_id=user_id, **data)
-    #     db.session.add(new_company)
-    #     db.session.commit()
-    #     return new_company
-    
     @staticmethod
-    def update_profile(user_id, data):
-        company = Company.query.filter_by(user_id=user_id).first()
+    def update(company_id, data):
+        company = Company.query.get(company_id)
         if not company:
             return None
-        for key, value in data.items():
-            setattr(company, key, value)
+        for field in CompanyService.UPDATABLE:
+            if field in data and data[field] is not None:
+                setattr(company, field, data[field])
+        company.updated_at = datetime.utcnow()
         db.session.commit()
         return company
-    
-    @staticmethod
-    def delete_profile(company_id):
-        company = Company.query.get(company_id)
-        if company:
-            db.session.delete(company)
-            db.session.commit()
-            return True
-        return False
 
     @staticmethod
-    def post_job(company_id, data):
+    def delete(company_id):
         company = Company.query.get(company_id)
         if not company:
-            return None
-        new_job = JobPosition(company_id=company_id, **data)
-        db.session.add(new_job)
+            return False
+        db.session.delete(company)
         db.session.commit()
-        return new_job
+        return True
+
+    # ── Drives ──────────────────────────────────────────────────────────────
+
+    @staticmethod
+    def get_drives(company_id):
+        return PlacementDrive.query.filter_by(company_id=company_id)\
+                                   .order_by(PlacementDrive.posted_date.desc()).all()
+
+    # ── Applicants ──────────────────────────────────────────────────────────
+
+    @staticmethod
+    def get_applicants(company_id, drive_id):
+        drive = PlacementDrive.query.filter_by(id=drive_id, company_id=company_id).first()
+        if not drive:
+            return None, 'Drive not found or does not belong to this company'
+        apps = Application.query.filter_by(drive_id=drive_id)\
+                                .order_by(Application.applied_date.desc()).all()
+        return apps, None
+
+    @staticmethod
+    def update_application_status(company_id, drive_id, application_id, status, notes=None):
+        VALID = ('Applied', 'Shortlisted', 'Rejected', 'Selected')
+        if status not in VALID:
+            return None, f'Status must be one of: {", ".join(VALID)}'
+
+        drive = PlacementDrive.query.filter_by(id=drive_id, company_id=company_id).first()
+        if not drive:
+            return None, 'Drive not found'
+
+        app = Application.query.filter_by(id=application_id, drive_id=drive_id).first()
+        if not app:
+            return None, 'Application not found'
+
+        app.status        = status
+        app.reviewed_date = datetime.utcnow()
+        if notes:
+            app.notes = notes
+
+        # Auto-create Placement record when Selected
+        if status == 'Selected' and not Placement.query.filter_by(application_id=application_id).first():
+            db.session.add(Placement(
+                student_id=app.student_id,
+                company_id=company_id,
+                application_id=application_id,
+                position_title=drive.title,
+                salary=drive.salary_max,
+                currency=drive.currency,
+                status='Offered',
+            ))
+
+        db.session.commit()
+        return app, None
