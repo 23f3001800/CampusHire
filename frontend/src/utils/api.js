@@ -1,106 +1,74 @@
-// Use environment variable when available, fall back to localhost for development
-const baseURL = import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
+import axios from 'axios'
 
+const BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api'
+
+const http = axios.create({ baseURL: BASE, timeout: 30000 })
+
+// ── Request: inject token ─────────────────────────────────────────────────────
+http.interceptors.request.use(config => {
+  const token = localStorage.getItem('token')
+  if (token) {
+    config.headers['Authentication-Token'] = token
+  }
+  if (config.data instanceof FormData) {
+    delete config.headers['Content-Type']   // let browser set multipart boundary
+  }
+  return config
+})
+
+// ── Response: unwrap data, handle errors globally ─────────────────────────────
+http.interceptors.response.use(
+  res => res.data,
+  err => {
+    if (err.response) {
+      const { status, data } = err.response
+
+      if (status === 401) {
+        localStorage.removeItem('token')
+        localStorage.removeItem('user')
+        if (window.$router) window.$router.push('/login')
+        else window.location.href = '/login'
+      }
+
+      const message = data?.message || data?.error || `HTTP ${status}`
+      const error   = new Error(message)
+      error.status  = status
+      error.errors  = data?.errors || {}
+      return Promise.reject(error)
+    }
+    return Promise.reject(new Error('Network error. Check your connection.'))
+  }
+)
+
+// ── Public API ────────────────────────────────────────────────────────────────
 const api = {
-  async request(endpoint, options = {}) {
-    // ensure endpoint starts with a slash
-    const path = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
-    const url = `${baseURL.replace(/\/$/, "")}${path}`;
-    const token = localStorage.getItem("token");
+  get:    (url, cfg = {})       => http.get(url, cfg),
+  post:   (url, data, cfg = {}) => http.post(url, data, cfg),
+  put:    (url, data, cfg = {}) => http.put(url, data, cfg),
+  patch:  (url, data, cfg = {}) => http.patch(url, data, cfg),
+  delete: (url, cfg = {})       => http.delete(url, cfg),
 
-    const headers = {
-      "Content-Type": "application/json",
-      ...options.headers,
-    };
-
-    if (token) {
-      headers["Authentication-Token"] = token;
+  upload(url, files, extra = {}) {
+    const fd = new FormData()
+    if (files instanceof File) {
+      fd.append('file', files)
+    } else {
+      Object.entries(files).forEach(([k, v]) => fd.append(k, v))
     }
-
-    const config = {
-      ...options,
-      headers,
-    };
-
-    try {
-      const response = await fetch(url, config);
-
-      if (response.status === 401) {
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-        window.location.href = "/login";
-        throw new Error("Session expired. Please login again.");
-      }
-
-      if (response.status === 403) {
-        throw new Error("You don't have permission to access this resource.");
-      }
-
-      if (!response.ok) {
-        let bodyText = null;
-        try {
-          const json = await response.json();
-          bodyText = json.message || json.error || JSON.stringify(json);
-        } catch (e) {
-          try {
-            bodyText = await response.text();
-          } catch (e2) {
-            /* ignore */
-          }
-        }
-        const message = bodyText
-          ? `${response.status} - ${bodyText}`
-          : `HTTP error! status: ${response.status}`;
-        const err = new Error(message);
-        err.status = response.status;
-        throw err;
-      }
-
-      // 204 No Content or empty body
-      if (response.status === 204) return null;
-      const text = await response.text();
-      if (!text) return null;
-      try {
-        return JSON.parse(text);
-      } catch (e) {
-        return text;
-      }
-    } catch (error) {
-      return Promise.reject(error);
-    }
+    Object.entries(extra).forEach(([k, v]) =>
+      fd.append(k, typeof v === 'object' ? JSON.stringify(v) : v)
+    )
+    return http.post(url, fd)
   },
 
-  get(endpoint, options = {}) {
-    return this.request(endpoint, { ...options, method: "GET" });
+  async download(url, filename) {
+    const data = await http.get(url, { responseType: 'blob' })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(new Blob([data]))
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(a.href)
   },
+}
 
-  post(endpoint, data, options = {}) {
-    return this.request(endpoint, {
-      ...options,
-      method: "POST",
-      body: JSON.stringify(data),
-    });
-  },
-
-  put(endpoint, data, options = {}) {
-    return this.request(endpoint, {
-      ...options,
-      method: "PUT",
-      body: JSON.stringify(data),
-    });
-  },
-
-  patch(endpoint, data, options = {}) {
-    return this.request(endpoint, {
-      ...options,
-      method: "PATCH",
-      body: JSON.stringify(data),
-    });
-  },
-
-  delete(endpoint, options = {}) {
-    return this.request(endpoint, { ...options, method: "DELETE" });
-  },
-};
-
-export default api;
+export default api

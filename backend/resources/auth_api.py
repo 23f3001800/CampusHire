@@ -1,116 +1,137 @@
 from flask import Blueprint, request, jsonify, current_app
-from models import User, Role, Student, Company
-from db import db, security
+from models import User, Student, Company
+from db import db
 from flask_security.utils import verify_password, hash_password
+from flask_security import auth_required, current_user
 import uuid
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/api/auth')
 
+
+def _user_response(user):
+    """Build standard user dict for auth responses."""
+    role = user.roles[0].name.lower() if user.roles else None
+    return {
+        'id':         user.id,
+        'name':       user.name,
+        'email':      user.email,
+        'role':       role,
+        'active':     user.active,
+        'student_id': user.student_profile.id if role == 'student' and user.student_profile else None,
+        'company_id': user.company_profile.id if role == 'company' and user.company_profile else None,
+    }
+
+
 @auth_bp.route('/login', methods=['POST'])
 def login():
     data = request.get_json()
-    email = data["email"]
-    password = data["password"]
+    if not data:
+        return jsonify({'message': 'No data provided'}), 400
 
-    if (not email or not password):
-        return jsonify({"message": "invalid input"}), 400
-    
-    user = User.query.filter_by(email = email).first_or_404()
-    print("Password:", password)
-    print("Password length:", len(password.encode("utf-8")))
-    print("Stored hash:", user.password)
-    print("Stored hash length:", len(user.password.encode("utf-8")))
+    email    = data.get('email', '').strip().lower()
+    password = data.get('password', '')
 
-    if not verify_password(password, user.password):
-        return jsonify({"message": "invalid credentials"}), 401
+    if not email or not password:
+        return jsonify({'message': 'Email and password are required'}), 400
 
+    user = User.query.filter_by(email=email).first()
+    if not user or not verify_password(password, user.password):
+        return jsonify({'message': 'Invalid credentials'}), 401
 
-    return jsonify({
-        "token": user.get_auth_token(),
-        "user": {
-            "id": user.id,
-            "email": user.email,
-            "name": user.name,
-            "role": user.roles[0].name,
-            "company_id":user.company_profile.id if user.roles[0].name == "company" else None,
-            "student_id" : user.student_profile.id if user.roles[0].name == "student" else None
-        }
-    }), 200
+    if not user.active:
+        return jsonify({'message': 'Account inactive. Awaiting admin approval.'}), 403
+
+    if not user.roles:
+        return jsonify({'message': 'No role assigned to this user'}), 403
+
+    return jsonify({'token': user.get_auth_token(), 'user': _user_response(user)}), 200
+
 
 @auth_bp.route('/register', methods=['POST'])
 def register():
-    data=request.get_json()
-    name = data["name"]
-    email = data["email"]
-    password = data["password"]
-    role= data["role"]
+    data = request.get_json()
+    if not data:
+        return jsonify({'message': 'No data provided'}), 400
 
-    active=True
+    name     = data.get('name', '').strip()
+    email    = data.get('email', '').strip().lower()
+    password = data.get('password', '')
+    role     = data.get('role', '').strip().lower()
 
-    # Map "recruiter" to "company"
-    if (not name or not email or not password or not role in ["student", "company"]):
-        return jsonify({"message": "invalid input"}), 400
+    if not all([name, email, password, role]):
+        return jsonify({'message': 'name, email, password and role are required'}), 400
 
-    if role == "company":
-        active = False
+    # CRITICAL: Admin registration is BLOCKED - admin is pre-seeded via init_db.py
+    if role not in ('student', 'company'):
+        return jsonify({'message': 'Registration only allowed for students and companies. Admin accounts are pre-configured.'}), 400
 
-    user = User.query.filter_by(email=email).first()
-    if user:
-        return jsonify({"message": "user already exists"}), 400
+    if len(password) < 8:
+        return jsonify({'message': 'Password must be at least 8 characters'}), 400
+
+    if User.query.filter_by(email=email).first():
+        return jsonify({'message': 'Email already registered'}), 400
 
     datastore = current_app.datastore
+    active    = role != 'company'   # companies start inactive until approved
 
-    datastore.create_user(name = name, email = email, password = hash_password(password), active = active)
     try:
+        user = datastore.create_user(
+            name=name, email=email,
+            password=hash_password(password),
+            active=active,
+            fs_uniquifier=str(uuid.uuid4())
+        )
+        db.session.flush()
+
+        role_obj = datastore.find_role(role)
+        if not role_obj:
+            db.session.rollback()
+            return jsonify({'message': f"Role '{role}' not found in database"}), 400
+
+        datastore.add_role_to_user(user, role_obj)
+
+        if role == 'student':
+            s = data.get('student', {})
+            db.session.add(Student(
+                user_id=user.id,
+                roll_number=s.get('rollNumber'),
+                branch=s.get('branch'),
+                graduation_year=int(s['graduation']) if s.get('graduation') else None,
+                phone=s.get('phone'),
+            ))
+        else:
+            c = data.get('recruiter', {})
+            db.session.add(Company(
+                user_id=user.id,
+                company_name=c.get('companyName', '').strip(),
+                department=c.get('department'),
+                designation=c.get('designation'),
+                hr_contact=c.get('phone'),
+                hr_email=email,
+                approval_status='Pending',
+            ))
+
         db.session.commit()
+
     except Exception as e:
         db.session.rollback()
-        return {"message": f"Error creating user: {e}"}, 400
-
-    role_obj = datastore.find_role(role)
-    user = datastore.find_user(email = email)
-    datastore.add_role_to_user(user, role_obj)
-    try:
-        db.session.commit()
-    except Exception as e:
-        db.session.rollback()
-        return {"message": f"Error assigning role: {e}"}, 400
-
-    # Create profile based on role
-    if role == "student" and "student" in data:
-        student_data = data["student"]
-        student = Student(
-            user_id=user.id,
-            roll_number=student_data.get("rollNumber"),
-            branch=student_data.get("branch"),
-            graduation_year=int(student_data.get("graduation", 0)),
-            phone=student_data.get("phone")
-        )
-        db.session.add(student)
-        try:
-            db.session.commit()
-        except Exception as e:
-            db.session.rollback()
-            return {"message": f"Error creating student profile: {e}"}, 400
-
-    elif role == "company" and "recruiter" in data:
-        company_data = data["recruiter"]
-        company = Company(
-            user_id=user.id,
-            company_name=company_data.get("companyName"),
-            department=company_data.get("department"),
-            designation=company_data.get("designation"),
-            hr_contact=company_data.get("phone")
-        )
-        db.session.add(company)
-        try:
-            db.session.commit()
-        except Exception as e:
-            db.session.rollback()
-            return {"message": f"Error creating company profile: {e}"}, 400
+        return jsonify({'message': f'Registration failed: {str(e)}'}), 500
 
     return jsonify({
-        "id": user.id,
-        "email": user.email,
-        "name": user.name,
+        'message': 'Registration successful. Please login.' if role == 'student'
+                   else 'Registration successful. Await admin approval.',
+        'user': {'id': user.id, 'name': user.name, 'email': user.email, 'role': role}
     }), 201
+
+
+@auth_bp.route('/logout', methods=['POST'])
+@auth_required('token')
+def logout():
+    # Flask-Security tokens are stateless; client discards the token
+    return jsonify({'message': 'Logged out successfully'}), 200
+
+
+@auth_bp.route('/me', methods=['GET'])
+@auth_required('token')
+def me():
+    return jsonify({'user': _user_response(current_user)}), 200

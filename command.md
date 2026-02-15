@@ -33,3 +33,14 @@ git push origin main --force
 git fetch origin
 # Rebase remote commits on top of your work:
 git pull origin main --rebase
+
+
+### redis server
+
+ pip install celery redis flask-mail
+ redis-server
+
+ sudo systemctl stop redis
+
+celery -A celery_app worker --loglevel=info
+celery -A celery_app beat --loglevel=info
