@@ -3,8 +3,8 @@ from datetime import datetime
 from werkzeug.utils import secure_filename
 import os
 
-UPLOAD_FOLDER    = 'uploads/resumes'
-ALLOWED_EXT      = {'pdf', 'doc', 'docx'}
+UPLOAD_FOLDER = 'uploads/resumes'
+ALLOWED_EXT   = {'pdf', 'doc', 'docx'}
 
 
 def _allowed(filename):
@@ -37,11 +37,13 @@ class StudentService:
 
     @staticmethod
     def update(student_id, data):
+        # Handles both PUT (full) and PATCH (partial)
+        # Only fields present in data are updated — safe for both cases
         student = Student.query.get(student_id)
         if not student:
             return None
         for field in StudentService.UPDATABLE:
-            if field in data and data[field] is not None:
+            if field in data:
                 setattr(student, field, data[field])
         student.updated_at = datetime.utcnow()
         db.session.commit()
@@ -65,7 +67,6 @@ class StudentService:
         filepath = os.path.join(UPLOAD_FOLDER, filename)
         file.save(filepath)
 
-        # Remove old file
         if student.resume_filename:
             old = os.path.join(UPLOAD_FOLDER, student.resume_filename)
             if os.path.exists(old):
@@ -99,12 +100,10 @@ class StudentService:
         student = Student.query.get(student_id)
         if not student:
             return None
-
         applied_ids = {app.drive_id for app in student.applications}
-        # Only fetch drives that are Open AND admin-approved
-        drives      = PlacementDrive.query.filter_by(status='Open', admin_approval_status='Approved').all()
-        eligible    = []
-
+        drives      = PlacementDrive.query.filter_by(
+            status='Open', admin_approval_status='Approved').all()
+        eligible = []
         for drive in drives:
             if drive.id in applied_ids:
                 continue
@@ -118,7 +117,6 @@ class StudentService:
                 if student.graduation_year != drive.eligible_graduation_year:
                     continue
             eligible.append(drive)
-
         return eligible
 
     @staticmethod
@@ -126,7 +124,6 @@ class StudentService:
         student = Student.query.get(student_id)
         if not student:
             return None, 'Student not found'
-
         drive = PlacementDrive.query.get(drive_id)
         if not drive:
             return None, 'Placement drive not found'
@@ -134,9 +131,9 @@ class StudentService:
             return None, 'This drive is no longer accepting applications'
         if drive.application_deadline and datetime.utcnow() > drive.application_deadline:
             return None, 'Application deadline has passed'
-        if Application.query.filter_by(student_id=student_id, drive_id=drive_id).first():
+        if Application.query.filter_by(
+                student_id=student_id, drive_id=drive_id).first():
             return None, 'Already applied to this drive'
-
         app = Application(
             student_id=student_id,
             drive_id=drive_id,
@@ -157,7 +154,8 @@ class StudentService:
 
     @staticmethod
     def withdraw(student_id, application_id):
-        app = Application.query.filter_by(id=application_id, student_id=student_id).first()
+        app = Application.query.filter_by(
+            id=application_id, student_id=student_id).first()
         if not app:
             return False, 'Application not found'
         if app.status != 'Applied':
@@ -172,7 +170,7 @@ class StudentService:
     def delete(student_id):
         student = Student.query.get(student_id)
         if not student:
-            return False
+            return False, 'Student not found'
         db.session.delete(student)
         db.session.commit()
-        return True
+        return True, None

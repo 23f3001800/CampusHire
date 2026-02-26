@@ -166,6 +166,24 @@ class Application(db.Model):
     notes          = db.Column(db.Text)
 
     placement = db.relationship('Placement', backref='application', uselist=False)
+    interview = db.relationship('Interview', backref='application', uselist=False)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+# Interview Model (NEW)
+
+class Interview(db.Model):
+    __tablename__ = 'interview'
+    id             = db.Column(db.Integer, primary_key=True)
+    application_id = db.Column(db.Integer, db.ForeignKey('application.id'), nullable=False, unique=True)
+    interview_type   = db.Column(db.String(50))   # 'HR','Technical','Managerial'
+    interview_date  = db.Column(db.DateTime)
+    interview_mode  = db.Column(db.String(50))   # 'Online','Onsite','Phone'
+    interview_link  = db.Column(db.String(500))  # For online interviews
+    instructions     = db.Column(db.Text)
+    interviewer     = db.Column(db.String(255))
+    feedback        = db.Column(db.Text)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

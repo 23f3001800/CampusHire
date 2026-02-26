@@ -6,7 +6,8 @@ from celery.schedules import crontab
 
 celery = Celery('placement_portal',
                 broker='redis://localhost:6379/0',
-                backend='redis://localhost:6379/0')
+                backend='redis://localhost:6379/0',
+                include=['tasks'])
 
 celery.conf.update(
     task_serializer='json',
@@ -31,4 +32,4 @@ celery.conf.update(
 )
 
 # # Auto-discover tasks
-# celery.autodiscover_tasks([''])
+# celery.autodiscover_tasks(['backend'])
