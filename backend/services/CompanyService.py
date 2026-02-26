@@ -6,7 +6,7 @@ class CompanyService:
 
     UPDATABLE = [
         'company_name', 'industry', 'company_size',
-        'location', 'website', 'description',
+        'location', 'website', 'description', 'logo_url',
         'hr_email', 'hr_contact', 'department', 'designation',
     ]
 
@@ -22,11 +22,13 @@ class CompanyService:
 
     @staticmethod
     def update(company_id, data):
+        # Handles both PUT (full) and PATCH (partial)
+        # Only fields present in data are updated — safe for both cases
         company = Company.query.get(company_id)
         if not company:
             return None
         for field in CompanyService.UPDATABLE:
-            if field in data and data[field] is not None:
+            if field in data:
                 setattr(company, field, data[field])
         company.updated_at = datetime.utcnow()
         db.session.commit()
@@ -36,10 +38,10 @@ class CompanyService:
     def delete(company_id):
         company = Company.query.get(company_id)
         if not company:
-            return False
+            return False, 'Company not found'
         db.session.delete(company)
         db.session.commit()
-        return True
+        return True, None
 
     # ── Drives ──────────────────────────────────────────────────────────────
 
@@ -52,7 +54,8 @@ class CompanyService:
 
     @staticmethod
     def get_applicants(company_id, drive_id):
-        drive = PlacementDrive.query.filter_by(id=drive_id, company_id=company_id).first()
+        drive = PlacementDrive.query.filter_by(
+            id=drive_id, company_id=company_id).first()
         if not drive:
             return None, 'Drive not found or does not belong to this company'
         apps = Application.query.filter_by(drive_id=drive_id)\
@@ -64,22 +67,21 @@ class CompanyService:
         VALID = ('Applied', 'Shortlisted', 'Rejected', 'Selected')
         if status not in VALID:
             return None, f'Status must be one of: {", ".join(VALID)}'
-
-        drive = PlacementDrive.query.filter_by(id=drive_id, company_id=company_id).first()
+        drive = PlacementDrive.query.filter_by(
+            id=drive_id, company_id=company_id).first()
         if not drive:
             return None, 'Drive not found'
-
-        app = Application.query.filter_by(id=application_id, drive_id=drive_id).first()
+        app = Application.query.filter_by(
+            id=application_id, drive_id=drive_id).first()
         if not app:
             return None, 'Application not found'
-
         app.status        = status
         app.reviewed_date = datetime.utcnow()
         if notes:
             app.notes = notes
-
-        # Auto-create Placement record when Selected
-        if status == 'Selected' and not Placement.query.filter_by(application_id=application_id).first():
+        # Auto-create Placement when Selected
+        if status == 'Selected' and not Placement.query.filter_by(
+                application_id=application_id).first():
             db.session.add(Placement(
                 student_id=app.student_id,
                 company_id=company_id,
@@ -89,6 +91,5 @@ class CompanyService:
                 currency=drive.currency,
                 status='Offered',
             ))
-
         db.session.commit()
         return app, None

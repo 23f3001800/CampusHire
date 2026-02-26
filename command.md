@@ -1,8 +1,8 @@
 ##### common system commands
 # pip3 freeze > requirements.txt
 pip3 install flask flask-sqlalchemy flask-security-too
-# source .env/bin/activate
-# python3 -m venv .env
+# source venv/bin/activate
+# python3 -m venv venv
 # pip3 install -r requirements.txt
 # sudo systemctl stop redis
 # $ celery -A app.celery worker --loglevel INFO

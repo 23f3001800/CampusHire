@@ -176,6 +176,50 @@ application_fields = {
     'updated_at': fields.DateTime(dt_format='iso8601'),
 }
 
+
+# ─── Interview Fields ─────────────────────────────────────────────────────────
+
+
+interview_fields = {
+    'id':             fields.Integer,
+    'application_id': fields.Integer,
+
+    # Nested from Application → Student
+    'student_name':  _attr(
+        lambda x: x.application.student.user.name
+        if x.application and x.application.student and x.application.student.user
+        else None
+    ),
+    'student_email': _attr(
+        lambda x: x.application.student.user.email
+        if x.application and x.application.student and x.application.student.user
+        else None
+    ),
+    # Nested from Application → Drive
+    'drive_title':  _attr(
+        lambda x: x.application.drive.title
+        if x.application and x.application.drive
+        else None
+    ),
+    'company_name': _attr(
+        lambda x: x.application.drive.company.company_name
+        if x.application and x.application.drive and x.application.drive.company
+        else None
+    ),
+     # Interview own fields — exactly matching model columns
+    'interview_type': fields.String,
+    'interview_date': fields.DateTime(dt_format='iso8601'),
+    'interview_mode': fields.String,
+    'interview_link': fields.String,
+    'instructions':   fields.String,
+    'interviewer':    fields.String,
+    'feedback':       fields.String,
+
+    'created_at': fields.DateTime(dt_format='iso8601'),
+    'updated_at': fields.DateTime(dt_format='iso8601'),
+}
+
+
 # ─── Placement Fields ─────────────────────────────────────────────────────────
 
 placement_fields = {

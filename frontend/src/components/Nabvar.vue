@@ -116,6 +116,7 @@ const NAV = {
       { label: 'Dashboard', icon: 'bi-speedometer2', name: 'AdminDashboard', dynamic: true },
       { label: 'Students',  icon: 'bi-people',       name: 'AdminStudents' },
       { label: 'Companies', icon: 'bi-building',     name: 'AdminCompanies' },
+      { label: 'GraphStats', icon: 'bi-card-checklist', name: 'AdminGraphStats' },
     ],
     dropdown: [],
   },

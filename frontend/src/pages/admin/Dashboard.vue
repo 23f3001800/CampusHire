@@ -3,31 +3,95 @@
     <div class="container-fluid px-4">
 
       <!-- Header -->
-      <div class="d-flex justify-content-between align-items-center mb-4">
+      <div class="d-flex justify-content-between
+                  align-items-center mb-4 flex-wrap gap-2">
         <div>
           <h3 class="fw-bold mb-0">Admin Dashboard</h3>
           <small class="text-muted">Full platform overview</small>
         </div>
-        <button class="btn btn-outline-secondary btn-sm" :disabled="adminStore.loading" @click="adminStore.fetchAll()">
-          <span v-if="adminStore.loading" class="spinner-border spinner-border-sm me-1"></span>
-          <i v-else class="bi bi-arrow-clockwise me-1"></i>Refresh
-        </button>
+        <div class="d-flex gap-2 flex-wrap">
+          <!-- Export buttons -->
+          <div class="dropdown">
+            <button class="btn btn-success btn-sm dropdown-toggle"
+                    :disabled="adminStore.exportLoading"
+                    data-bs-toggle="dropdown">
+              <span v-if="adminStore.exportLoading"
+                    class="spinner-border spinner-border-sm me-1"></span>
+              <i v-else class="bi bi-download me-1"></i>Export CSV
+            </button>
+            <ul class="dropdown-menu shadow">
+              <li v-for="e in exportOptions" :key="e.type">
+                <a class="dropdown-item" href="#"
+                   @click.prevent="exportData(e.type)">
+                  <i :class="`bi ${e.icon} me-2 text-${e.color}`"></i>
+                  {{ e.label }}
+                </a>
+              </li>
+            </ul>
+          </div>
+
+          <button class="btn btn-outline-secondary btn-sm"
+                  :disabled="adminStore.loading"
+                  @click="adminStore.fetchAll(true)">
+            <span v-if="adminStore.loading"
+                  class="spinner-border spinner-border-sm me-1"></span>
+            <i v-else class="bi bi-arrow-clockwise me-1"></i>Refresh
+          </button>
+        </div>
       </div>
 
       <!-- Error banner -->
-      <div v-if="adminStore.error" class="alert alert-danger d-flex align-items-center mb-4">
-        <i class="bi bi-exclamation-triangle-fill me-2"></i>{{ adminStore.error }}
-        <button type="button" class="btn-close ms-auto" @click="adminStore.error = null"></button>
+      <div v-if="adminStore.error"
+           class="alert alert-danger d-flex align-items-center mb-4">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+        {{ adminStore.error }}
+        <button class="btn-close ms-auto"
+                @click="adminStore.error = null"></button>
       </div>
 
-      <!-- Stats row -->
+      <!-- Stat cards -->
       <div class="row g-3 mb-4">
-        <div class="col-6 col-lg-2" v-for="s in statCards" :key="s.label">
-          <div class="stat-card text-white h-100" :class="s.bg">
-            <i :class="`bi ${s.icon} fs-3 opacity-75`"></i>
-            <div class="mt-1">
-              <div class="fs-4 fw-bold lh-1">{{ s.value }}</div>
-              <small class="opacity-90">{{ s.label }}</small>
+        <div class="col-6 col-md-4 col-lg-2"
+             v-for="s in statCards" :key="s.label">
+          <router-link :to="s.to" class="text-decoration-none">
+            <div class="stat-card text-white h-100" :class="s.bg">
+              <i :class="`bi ${s.icon} fs-3 opacity-75`"></i>
+              <div class="mt-1">
+                <div class="fs-4 fw-bold lh-1">{{ s.value }}</div>
+                <small class="opacity-90">{{ s.label }}</small>
+              </div>
+            </div>
+          </router-link>
+        </div>
+      </div>
+
+      <!-- Chart row -->
+      <div class="row g-4 mb-4">
+        <div class="col-md-6">
+          <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white border-bottom py-3">
+              <h6 class="mb-0 fw-bold">
+                <i class="bi bi-pie-chart me-2 text-primary"></i>
+                Application Status Distribution
+              </h6>
+            </div>
+            <div class="card-body d-flex align-items-center
+                        justify-content-center" style="height:240px">
+              <canvas ref="statusChart"></canvas>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white border-bottom py-3">
+              <h6 class="mb-0 fw-bold">
+                <i class="bi bi-bar-chart me-2 text-success"></i>
+                Students by Branch
+              </h6>
+            </div>
+            <div class="card-body d-flex align-items-center
+                        justify-content-center" style="height:240px">
+              <canvas ref="branchChart"></canvas>
             </div>
           </div>
         </div>
@@ -36,55 +100,92 @@
       <!-- Tabs -->
       <ul class="nav nav-tabs mb-0 border-bottom">
         <li class="nav-item" v-for="t in tabs" :key="t.key">
-          <a class="nav-link px-4 py-3" :class="{ active: activeTab === t.key }"
-            @click.prevent="activeTab = t.key" href="#" role="tab">
+          <a class="nav-link px-4 py-3"
+             :class="{ active: activeTab === t.key }"
+             @click.prevent="activeTab = t.key"
+             href="#">
             <i :class="`bi ${t.icon} me-1`"></i>{{ t.label }}
-            <span v-if="t.badge" class="badge bg-danger rounded-pill ms-1">{{ t.badge }}</span>
+            <span v-if="t.badge"
+                  class="badge bg-danger rounded-pill ms-1">
+              {{ t.badge }}
+            </span>
           </a>
         </li>
       </ul>
 
-      <div class="tab-content bg-white rounded-bottom shadow-sm p-4">
+      <div class="tab-content bg-white rounded-bottom
+                  shadow-sm p-4">
 
-        <!-- ── PENDING APPROVALS ─────────────────────────────────────── -->
+        <!-- ── PENDING APPROVALS ────────────────────────────────── -->
         <div v-show="activeTab === 'pending'">
-          <div v-if="!adminStore.pendingCompanies.length" class="empty-state py-5">
-            <i class="bi bi-check-circle-fill text-success fs-1 d-block mb-2"></i>
-            <p class="text-muted mb-0">All companies reviewed — no pending approvals.</p>
+          <div v-if="!adminStore.pendingCompanies.length"
+               class="empty-state py-5">
+            <i class="bi bi-check-circle-fill text-success
+                       fs-1 d-block mb-2"></i>
+            <p class="text-muted mb-0">
+              All companies reviewed — no pending approvals.
+            </p>
           </div>
           <div v-else class="table-responsive">
             <table class="table table-hover align-middle mb-0">
               <thead class="table-light">
                 <tr>
-                  <th>Company</th><th>Recruiter</th><th>Industry</th>
-                  <th>Location</th><th>Registered</th><th class="text-end">Actions</th>
+                  <th>Company</th><th>Recruiter</th>
+                  <th>Industry</th><th>Location</th>
+                  <th>Registered</th>
+                  <th class="text-end">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="c in adminStore.pendingCompanies" :key="c.id">
+                <tr v-for="c in adminStore.pendingCompanies"
+                    :key="c.id">
                   <td>
                     <div class="d-flex align-items-center gap-2">
-                      <img v-if="c.logo_url" :src="c.logo_url" class="rounded"
-                        style="width:32px;height:32px;object-fit:cover" />
-                      <div v-else class="company-avatar">{{ initials(c.company_name) }}</div>
-                      <strong>{{ c.company_name || '—' }}</strong>
+                      <img v-if="c.logo_url" :src="c.logo_url"
+                           class="rounded"
+                           style="width:32px;height:32px;
+                                  object-fit:cover"
+                           @error="c.logo_url = null" />
+                      <div v-else class="company-avatar">
+                        {{ initials(c.company_name) }}
+                      </div>
+                      <div>
+                        <div class="fw-semibold">
+                          {{ c.company_name || '—' }}
+                        </div>
+                        <small v-if="c.website"
+                               class="text-muted">
+                          {{ c.website }}
+                        </small>
+                      </div>
                     </div>
                   </td>
                   <td>
-                    {{ c.recruiter_name }}<br>
-                    <small class="text-muted">{{ c.recruiter_email }}</small>
+                    {{ c.recruiter_name }}
+                    <br>
+                    <small class="text-muted">
+                      {{ c.recruiter_email }}
+                    </small>
                   </td>
                   <td>{{ c.industry || '—' }}</td>
-                  <td>{{ c.location || '—' }}</td>
-                  <td><small>{{ formatDate(c.created_at) }}</small></td>
+                  <td>{{ c.location  || '—' }}</td>
+                  <td>
+                    <small>{{ fmtDate(c.created_at) }}</small>
+                  </td>
                   <td class="text-end">
                     <button class="btn btn-success btn-sm me-1"
-                      :disabled="rowBusy[c.id]" @click="approve(c.id)">
-                      <span v-if="rowBusy[c.id]" class="spinner-border spinner-border-sm"></span>
-                      <template v-else><i class="bi bi-check-lg me-1"></i>Approve</template>
+                            :disabled="rowBusy[c.id]"
+                            @click="approve(c.id)">
+                      <span v-if="rowBusy[c.id]"
+                            class="spinner-border
+                                   spinner-border-sm"></span>
+                      <template v-else>
+                        <i class="bi bi-check-lg me-1"></i>Approve
+                      </template>
                     </button>
                     <button class="btn btn-outline-danger btn-sm"
-                      :disabled="rowBusy[c.id]" @click="reject(c.id)">
+                            :disabled="rowBusy[c.id]"
+                            @click="reject(c.id)">
                       <i class="bi bi-x-lg me-1"></i>Reject
                     </button>
                   </td>
@@ -94,338 +195,388 @@
           </div>
         </div>
 
-        <!-- ── ALL COMPANIES ────────────────────────────────────────── -->
-        <div v-show="activeTab === 'companies'">
-          <div class="d-flex gap-2 mb-3">
-            <div class="input-group" style="max-width:300px">
-              <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
-              <input v-model="companySearch" type="text"
-                class="form-control border-start-0" placeholder="Search companies…" />
+        <!-- ── PLACEMENT DRIVES ────────────────────────────────── -->
+        <div v-show="activeTab === 'drives'">
+          <!-- Filters -->
+          <div class="d-flex flex-wrap gap-2 mb-4">
+            <div class="input-group" style="max-width:280px">
+              <span class="input-group-text bg-white">
+                <i class="bi bi-search"></i>
+              </span>
+              <input v-model="driveSearch" type="text"
+                     class="form-control border-start-0"
+                     placeholder="Search drives, companies…" />
             </div>
-            <select v-model="companyFilter" class="form-select" style="max-width:170px">
+            <select v-model="driveStatusFilter"
+                    class="form-select" style="max-width:160px">
               <option value="">All Statuses</option>
-              <option value="Pending">Pending</option>
+              <option>Open</option>
+              <option>Closed</option>
+              <option>Completed</option>
+            </select>
+            <select v-model="driveApprovalFilter"
+                    class="form-select" style="max-width:180px">
+              <option value="">All Approvals</option>
+              <option value="Pending">Pending Approval</option>
               <option value="Approved">Approved</option>
               <option value="Rejected">Rejected</option>
             </select>
+            <button v-if="driveSearch || driveStatusFilter ||
+                          driveApprovalFilter"
+                    class="btn btn-outline-secondary btn-sm"
+                    @click="driveSearch = '';
+                            driveStatusFilter = '';
+                            driveApprovalFilter = ''">
+              <i class="bi bi-x me-1"></i>Clear
+            </button>
           </div>
-          <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-              <thead class="table-light">
-                <tr>
-                  <th>Company</th><th>Recruiter</th><th>Industry</th>
-                  <th>Drives</th><th>Status</th><th class="text-end">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-if="!filteredCompanies.length">
-                  <td colspan="6" class="text-center text-muted py-4">No companies found</td>
-                </tr>
-                <tr v-for="c in filteredCompanies" :key="c.id">
-                  <td>
-                    <strong>{{ c.company_name || '—' }}</strong><br>
-                    <small class="text-muted">{{ c.website || '' }}</small>
-                  </td>
-                  <td>
-                    {{ c.recruiter_name }}<br>
-                    <small class="text-muted">{{ c.recruiter_email }}</small>
-                  </td>
-                  <td>{{ c.industry || '—' }}</td>
-                  <td>
-                    <span class="badge bg-light text-dark">
-                      {{ drivesForCompany(c.id) }}
-                    </span>
-                  </td>
-                  <td>
-                    <span class="badge" :class="approvalBadge(c.approval_status)">
-                      {{ c.approval_status }}
-                    </span>
-                  </td>
-                  <td class="text-end">
-                    <button v-if="c.approval_status === 'Pending'"
-                      class="btn btn-success btn-sm me-1" :disabled="rowBusy[c.id]"
-                      @click="approve(c.id)">
-                      <i class="bi bi-check-lg"></i>
-                    </button>
-                    <button v-if="c.approval_status === 'Pending'"
-                      class="btn btn-outline-danger btn-sm" :disabled="rowBusy[c.id]"
-                      @click="reject(c.id)">
-                      <i class="bi bi-x-lg"></i>
-                    </button>
-                    <span v-if="c.approval_status !== 'Pending'" class="text-muted small">—</span>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
 
-        <!-- ── STUDENTS ──────────────────────────────────────────────── -->
-        <div v-show="activeTab === 'students'">
-          <div class="d-flex gap-2 mb-3">
-            <div class="input-group" style="max-width:300px">
-              <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
-              <input v-model="studentSearch" type="text"
-                class="form-control border-start-0" placeholder="Search students…" />
-            </div>
-            <select v-model="studentFilter" class="form-select" style="max-width:170px">
-              <option value="">All Students</option>
-              <option value="active">Active</option>
-              <option value="blocked">Blocked</option>
-            </select>
+          <div v-if="adminStore.loadingDrives"
+               class="text-center py-5">
+            <div class="spinner-border text-primary"></div>
           </div>
-          <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-              <thead class="table-light">
-                <tr>
-                  <th>Student</th><th>Roll No.</th><th>Branch</th>
-                  <th>CGPA</th><th>Grad Year</th><th>Status</th><th class="text-end">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-if="!filteredStudents.length">
-                  <td colspan="7" class="text-center text-muted py-4">No students found</td>
-                </tr>
-                <tr v-for="s in filteredStudents" :key="s.id">
-                  <td>
-                    <strong>{{ s.name }}</strong><br>
-                    <small class="text-muted">{{ s.email }}</small>
-                  </td>
-                  <td>{{ s.roll_number || '—' }}</td>
-                  <td>{{ s.branch || '—' }}</td>
-                  <td>
-                    <span v-if="s.cgpa" class="badge"
-                      :class="s.cgpa >= 8 ? 'bg-success' : s.cgpa >= 6 ? 'bg-warning text-dark' : 'bg-danger'">
-                      {{ s.cgpa }}
-                    </span>
-                    <span v-else class="text-muted">—</span>
-                  </td>
-                  <td>{{ s.graduation_year || '—' }}</td>
-                  <td>
-                    <span class="badge" :class="s.active !== false ? 'bg-success' : 'bg-secondary'">
-                      {{ s.active !== false ? 'Active' : 'Blocked' }}
-                    </span>
-                  </td>
-                  <td class="text-end">
-                    <button v-if="s.active !== false"
-                      class="btn btn-warning btn-sm" :disabled="rowBusy[s.user_id]"
-                      @click="blockStudent(s.user_id)">
-                      <i class="bi bi-slash-circle me-1"></i>Block
-                    </button>
-                    <button v-else
-                      class="btn btn-success btn-sm" :disabled="rowBusy[s.user_id]"
-                      @click="unblockStudent(s.user_id)">
-                      <i class="bi bi-check-circle me-1"></i>Unblock
-                    </button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
 
-        <!-- ── PLACEMENT DRIVES ──────────────────────────────────────── -->
-        <div v-show="activeTab === 'drives'">
-          <div class="d-flex gap-2 mb-3">
-            <div class="input-group" style="max-width:300px">
-              <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
-              <input v-model="driveSearch" type="text"
-                class="form-control border-start-0" placeholder="Search drives…" />
-            </div>
-            <select v-model="driveFilter" class="form-select" style="max-width:170px">
-              <option value="">All Statuses</option>
-              <option value="Open">Open</option>
-              <option value="Closed">Closed</option>
-              <option value="Completed">Completed</option>
-            </select>
+          <div v-else-if="!filteredDrives.length"
+               class="text-center text-muted py-5">
+            <i class="bi bi-folder-x fs-1 d-block mb-2"></i>
+            No drives found
           </div>
-          <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-              <thead class="table-light">
-                <tr>
-                  <th>Title</th><th>Company</th><th>Type</th>
-                  <th>Drive Date</th><th>Deadline</th><th>Applicants</th>
-                  <th>Status</th><th class="text-end">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-if="!filteredDrives.length">
-                  <td colspan="8" class="text-center text-muted py-4">No drives found</td>
-                </tr>
-                <tr v-for="d in filteredDrives" :key="d.id">
-                  <td><strong>{{ d.title }}</strong></td>
-                  <td>{{ d.company_name }}</td>
-                  <td>
-                    <span class="badge bg-light text-dark">{{ d.job_type || '—' }}</span>
-                  </td>
-                  <td><small>{{ formatDate(d.drive_date) }}</small></td>
-                  <td>
-                    <small :class="isUrgent(d.application_deadline) ? 'text-danger fw-bold' : ''">
-                      {{ formatDate(d.application_deadline) }}
-                    </small>
-                  </td>
-                  <td>
-                    <span class="badge bg-primary">{{ d.total_applications }}</span>
-                  </td>
-                  <td>
-                    <span class="badge" :class="driveBadge(d.status)">{{ d.status }}</span>
-                  </td>
-                  <td class="text-end">
-                    <button class="btn btn-outline-warning btn-sm me-1"
+
+          <div v-else class="row g-4">
+            <div class="col-lg-6"
+                 v-for="d in filteredDrives" :key="d.id">
+              <div class="card drive-card shadow-sm h-100 border-0"
+                   :class="{
+                     'border-start border-4 border-warning':
+                       d.admin_approval_status === 'Pending',
+                     'border-start border-4 border-danger':
+                       d.admin_approval_status === 'Rejected',
+                   }">
+                <div class="card-body">
+                  <div class="d-flex justify-content-between mb-2">
+                    <div class="flex-grow-1 pe-2">
+                      <h5 class="mb-1">{{ d.title }}</h5>
+                      <p class="text-muted mb-0 small">
+                        <i class="bi bi-building me-1"></i>
+                        {{ d.company_name }}
+                        <span v-if="d.location" class="ms-2">
+                          <i class="bi bi-geo-alt me-1"></i>
+                          {{ d.location }}
+                        </span>
+                      </p>
+                    </div>
+                    <div class="d-flex flex-column align-items-end
+                                gap-1 flex-shrink-0">
+                      <span class="badge"
+                            :class="statusBadge(d.status)">
+                        {{ d.status }}
+                      </span>
+                      <span class="badge"
+                            :class="approvalBadge(
+                              d.admin_approval_status)">
+                        {{ d.admin_approval_status || 'N/A' }}
+                      </span>
+                    </div>
+                  </div>
+
+                  <!-- Info grid -->
+                  <div class="row g-2 bg-light rounded
+                              p-2 mb-3 small">
+                    <div class="col-6">
+                      <span class="text-muted d-block">Type</span>
+                      <strong>{{ d.job_type || '—' }}</strong>
+                    </div>
+                    <div class="col-6">
+                      <span class="text-muted d-block">
+                        Deadline
+                      </span>
+                      <strong :class="{
+                        'text-danger': isUrgent(
+                          d.application_deadline)
+                      }">
+                        {{ fmtDate(d.application_deadline) }}
+                      </strong>
+                    </div>
+                    <div class="col-6">
+                      <span class="text-muted d-block">
+                        Drive Date
+                      </span>
+                      <strong>{{ fmtDate(d.drive_date) }}</strong>
+                    </div>
+                    <div class="col-6">
+                      <span class="text-muted d-block">
+                        Applicants
+                      </span>
+                      <strong>{{ d.total_applications ?? 0 }}</strong>
+                    </div>
+                  </div>
+
+                  <!-- Applicant stats badges -->
+                  <div v-if="d.total_applications > 0"
+                       class="d-flex flex-wrap gap-1 mb-3">
+                    <template
+                      v-for="(v, k) in adminStore
+                        .getDriveApplicantStats(d.id)"
+                      :key="k">
+                      <span v-if="k !== 'total' && v > 0"
+                            class="badge"
+                            :class="statusBadge(k)">
+                        {{ v }} {{ k }}
+                      </span>
+                    </template>
+                  </div>
+
+                  <!-- Drive actions -->
+                  <div class="d-flex gap-2 flex-wrap">
+                    <router-link
+                      :to="`/admin/drives/${d.id}`"
+                      class="btn btn-outline-primary btn-sm flex-grow-1">
+                      <i class="bi bi-eye me-1"></i>Details
+                    </router-link>
+
+                    <!-- Approval quick-actions on card -->
+                    <template v-if="d.admin_approval_status ===
+                                    'Pending'">
+                      <button class="btn btn-success btn-sm"
+                              :disabled="rowBusy[d.id]"
+                              @click="approveDrive(d.id)">
+                        <span v-if="rowBusy[d.id]"
+                              class="spinner-border
+                                     spinner-border-sm"></span>
+                        <i v-else class="bi bi-check-lg"></i>
+                      </button>
+                      <button class="btn btn-outline-danger btn-sm"
+                              :disabled="rowBusy[d.id]"
+                              @click="rejectDrive(d.id)">
+                        <i class="bi bi-x-lg"></i>
+                      </button>
+                    </template>
+
+                    <button
+                      class="btn btn-outline-secondary btn-sm"
                       :disabled="rowBusy[d.id]"
-                      :title="d.status === 'Open' ? 'Close drive' : 'Reopen drive'"
+                      :title="d.status === 'Open'
+                        ? 'Close drive' : 'Reopen drive'"
                       @click="toggleDrive(d.id)">
-                      <i class="bi" :class="d.status === 'Open' ? 'bi-toggle-on' : 'bi-toggle-off'"></i>
+                      <i class="bi"
+                         :class="d.status === 'Open'
+                           ? 'bi-toggle-on text-success'
+                           : 'bi-toggle-off'"></i>
                     </button>
+
                     <button class="btn btn-outline-danger btn-sm"
-                      :disabled="rowBusy[d.id]"
-                      title="Delete drive permanently"
-                      @click="deleteDrive(d.id)">
+                            :disabled="rowBusy[d.id]"
+                            title="Delete drive"
+                            @click="deleteDrive(d.id)">
                       <i class="bi bi-trash"></i>
                     </button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
-        <!-- ── PLACEMENTS ──────────────────────────────────────────────── -->
+        <!-- ── PLACEMENTS ───────────────────────────────────────── -->
         <div v-show="activeTab === 'placements'">
-          <!-- Summary chips -->
+          <!-- Stats strip -->
           <div class="d-flex flex-wrap gap-2 mb-4">
             <span class="badge fs-6 bg-primary px-3 py-2">
-              Total: {{ adminStore.dashboardStats.total_placements ?? 0 }}
+              Total: {{ adminStore.placementStats.total }}
             </span>
-            <span class="badge fs-6 bg-warning text-dark px-3 py-2">
-              Offered: {{ adminStore.dashboardStats.placements_offered ?? 0 }}
+            <span class="badge fs-6 bg-warning
+                         text-dark px-3 py-2">
+              Offered: {{ adminStore.placementStats.offered }}
             </span>
             <span class="badge fs-6 bg-success px-3 py-2">
-              Joined: {{ adminStore.dashboardStats.placements_joined ?? 0 }}
+              Joined: {{ adminStore.placementStats.joined }}
             </span>
             <span class="badge fs-6 bg-danger px-3 py-2">
-              Declined: {{ adminStore.dashboardStats.placements_declined ?? 0 }}
+              Declined: {{ adminStore.placementStats.declined }}
             </span>
           </div>
 
-          <div v-if="!adminStore.placements.length" class="empty-state py-5">
-            <i class="bi bi-trophy fs-1 text-muted d-block mb-2"></i>
+          <!-- Placement search -->
+          <div class="mb-4">
+            <div class="input-group" style="max-width:320px">
+              <span class="input-group-text bg-white">
+                <i class="bi bi-search"></i>
+              </span>
+              <input v-model="placementSearch" type="text"
+                     class="form-control border-start-0"
+                     placeholder="Search student, company…" />
+            </div>
+          </div>
+
+          <div v-if="!adminStore.placements.length"
+               class="empty-state py-5">
+            <i class="bi bi-trophy fs-1 text-muted
+                       d-block mb-2"></i>
             <p class="text-muted">No placements recorded yet</p>
           </div>
+
           <div v-else class="table-responsive">
             <table class="table table-hover align-middle mb-0">
               <thead class="table-light">
                 <tr>
-                  <th>Student</th><th>Company</th><th>Role</th>
-                  <th>Package</th><th>Status</th><th>Joining Date</th>
+                  <th>Student</th><th>Company</th>
+                  <th>Role</th><th>Package</th>
+                  <th>Status</th><th>Joining Date</th>
+                  <th>Offer</th>
                 </tr>
               </thead>
               <tbody>
-                <tr v-for="p in adminStore.placements" :key="p.id">
+                <tr v-for="p in filteredPlacements" :key="p.id">
                   <td>
-                    <strong>{{ p.student_name }}</strong>
+                    <router-link
+                      :to="`/admin/students/${p.student_id}`"
+                      class="fw-semibold text-decoration-none">
+                      {{ p.student_name }}
+                    </router-link>
                   </td>
                   <td>{{ p.company_name }}</td>
                   <td>{{ p.position_title }}</td>
                   <td>
-                    <span v-if="p.salary" class="text-success fw-bold">
-                      {{ formatSalary(p.salary, p.currency) }}
+                    <span v-if="p.salary"
+                          class="text-success fw-bold">
+                      {{ fmtSalary(p.salary, p.currency) }}
                     </span>
                     <span v-else class="text-muted">—</span>
                   </td>
                   <td>
                     <span class="badge"
-                      :class="{ Offered: 'bg-warning text-dark', Joined: 'bg-success', Declined: 'bg-danger' }[p.status] || 'bg-secondary'">
+                          :class="placementBadge(p.status)">
                       {{ p.status }}
                     </span>
                   </td>
-                  <td><small>{{ p.joining_date ? formatDate(p.joining_date) : '—' }}</small></td>
+                  <td>
+                    <small>
+                      {{ p.joining_date
+                          ? fmtDate(p.joining_date) : '—' }}
+                    </small>
+                  </td>
+                  <td>
+                    <a v-if="p.offer_letter"
+                       :href="p.offer_letter" target="_blank"
+                       class="btn btn-sm btn-outline-secondary">
+                      <i class="bi bi-file-earmark-pdf"></i>
+                    </a>
+                    <span v-else class="text-muted small">—</span>
+                  </td>
                 </tr>
               </tbody>
             </table>
           </div>
         </div>
 
-      </div><!-- /tab-content -->
+      </div>
     </div>
   </div>
 </template>
 
 <script>
 import { useAdminStore } from '@/stores/adminStore'
+import { useUserStore }  from '@/stores/userStore'
+import {
+  Chart,
+  DoughnutController,
+  BarController,
+  ArcElement,
+  BarElement,
+  CategoryScale,
+  LinearScale,
+  Tooltip,
+  Legend,
+} from 'chart.js'
+
+Chart.register(
+  DoughnutController, BarController,
+  ArcElement, BarElement,
+  CategoryScale, LinearScale,
+  Tooltip, Legend
+)
 
 export default {
   name: 'AdminDashboard',
 
   setup() {
-    return { adminStore: useAdminStore() }
+    return {
+      adminStore: useAdminStore(),
+      userStore:  useUserStore(),
+    }
   },
 
   data: () => ({
-    activeTab:     'pending',
-    rowBusy:       {},          // { [id]: true } — per-row loading spinners
-
-    companySearch: '',
-    companyFilter: '',
-
-    studentSearch: '',
-    studentFilter: '',
-
-    driveSearch:   '',
-    driveFilter:   '',
+    activeTab:          'pending',
+    exportOptions: [
+      { type: 'students', icon: 'bi-people-fill', color: 'primary', label: 'Students' },
+      { type: 'companies', icon: 'bi-building', color: 'success', label: 'Companies' },
+      { type: 'drives',    icon: 'bi-briefcase-fill', color: 'info', label: 'Drives' },
+      { type: 'placements',icon: 'bi-trophy-fill', color: 'warning', label: 'Placements' },
+    ],
+    rowBusy:            {},
+    driveSearch:        '',
+    driveStatusFilter:  '',
+    driveApprovalFilter:'',
+    placementSearch:    '',
+    _statusChart:       null,
+    _branchChart:       null,
   }),
 
   computed: {
     tabs() {
       const s = this.adminStore.dashboardStats
       return [
-        { key: 'pending',    icon: 'bi-hourglass-split', label: 'Pending Approvals',
-          badge: s.pending_companies || null },
-        { key: 'companies',  icon: 'bi-building',  label: 'Companies' },
-        { key: 'students',   icon: 'bi-people',    label: 'Students' },
+        {
+          key: 'pending', icon: 'bi-hourglass-split',
+          label: 'Pending Approvals',
+          badge: s.pending_companies || null,
+        },
         { key: 'drives',     icon: 'bi-briefcase', label: 'Placement Drives' },
-        { key: 'placements', icon: 'bi-trophy',    label: 'Placements' },
+        { key: 'placements', icon: 'bi-trophy',    label: 'Placements'       },
       ]
     },
 
     statCards() {
       const s = this.adminStore.dashboardStats
       return [
-        { label: 'Students',          value: s.total_students    ?? 0, bg: 'bg-primary',   icon: 'bi-mortarboard-fill' },
-        { label: 'Companies',         value: s.total_companies   ?? 0, bg: 'bg-success',   icon: 'bi-building' },
-        { label: 'Pending Approvals', value: s.pending_companies ?? 0, bg: 'bg-warning',   icon: 'bi-hourglass-split' },
-        { label: 'Open Drives',       value: s.open_drives       ?? 0, bg: 'bg-info',      icon: 'bi-briefcase-fill' },
-        { label: 'Placed Students',   value: s.total_placements  ?? 0, bg: 'bg-success',   icon: 'bi-trophy-fill' },
-        { label: 'Applications',      value: s.total_applications?? 0, bg: 'bg-secondary', icon: 'bi-file-earmark-text-fill' },
+        {
+          label: 'Students',
+          value: s.total_students    ?? 0,
+          bg: 'bg-primary', icon: 'bi-mortarboard-fill',
+          to: '/admin/students',
+        },
+        {
+          label: 'Companies',
+          value: s.total_companies   ?? 0,
+          bg: 'bg-success', icon: 'bi-building',
+          to: '/admin/companies',
+        },
+        {
+          label: 'Pending',
+          value: s.pending_companies ?? 0,
+          bg: 'bg-warning', icon: 'bi-hourglass-split',
+          to: '/admin/companies',
+        },
+        {
+          label: 'Open Drives',
+          value: s.open_drives       ?? 0,
+          bg: 'bg-info', icon: 'bi-briefcase-fill',
+          to: '/admin',
+        },
+        {
+          label: 'Placed',
+          value: s.total_placements  ?? 0,
+          bg: 'bg-success', icon: 'bi-trophy-fill',
+          to: '/admin',
+        },
+        {
+          label: 'Applications',
+          value: s.total_applications?? 0,
+          bg: 'bg-secondary', icon: 'bi-file-earmark-text-fill',
+          to: '/admin',
+        },
       ]
-    },
-
-    filteredCompanies() {
-      return this.adminStore.companies.filter(c => {
-        const q = this.companySearch.toLowerCase()
-        const matchSearch = !q ||
-          c.company_name?.toLowerCase().includes(q) ||
-          c.recruiter_name?.toLowerCase().includes(q) ||
-          c.recruiter_email?.toLowerCase().includes(q)
-        const matchFilter = !this.companyFilter || c.approval_status === this.companyFilter
-        return matchSearch && matchFilter
-      })
-    },
-
-    filteredStudents() {
-      return this.adminStore.students.filter(s => {
-        const q = this.studentSearch.toLowerCase()
-        const matchSearch = !q ||
-          s.name?.toLowerCase().includes(q) ||
-          s.email?.toLowerCase().includes(q) ||
-          s.roll_number?.toLowerCase().includes(q) ||
-          s.branch?.toLowerCase().includes(q)
-        const matchFilter =
-          !this.studentFilter ||
-          (this.studentFilter === 'active'  && s.active !== false) ||
-          (this.studentFilter === 'blocked' && s.active === false)
-        return matchSearch && matchFilter
-      })
     },
 
     filteredDrives() {
@@ -434,18 +585,38 @@ export default {
         const matchSearch = !q ||
           d.title?.toLowerCase().includes(q) ||
           d.company_name?.toLowerCase().includes(q)
-        const matchFilter = !this.driveFilter || d.status === this.driveFilter
-        return matchSearch && matchFilter
+        const matchStatus = !this.driveStatusFilter ||
+          d.status === this.driveStatusFilter
+        const matchApproval = !this.driveApprovalFilter ||
+          d.admin_approval_status === this.driveApprovalFilter
+        return matchSearch && matchStatus && matchApproval
       })
+    },
+
+    filteredPlacements() {
+      if (!this.placementSearch) return this.adminStore.placements
+      const q = this.placementSearch.toLowerCase()
+      return this.adminStore.placements.filter(p =>
+        p.student_name?.toLowerCase().includes(q) ||
+        p.company_name?.toLowerCase().includes(q) ||
+        p.position_title?.toLowerCase().includes(q)
+      )
     },
   },
 
   async mounted() {
     await this.adminStore.fetchAll()
+    this.$nextTick(() => this.renderCharts())
+  },
+
+  watch: {
+    'adminStore.students'() {
+      this.$nextTick(() => this.renderBranchChart())
+    },
   },
 
   methods: {
-    // ── Company actions ───────────────────────────────────────────────────
+    // ── Company actions ─────────────────────────────────────────────────
     async approve(companyId) {
       this.rowBusy[companyId] = true
       try   { await this.adminStore.approveCompany(companyId) }
@@ -454,30 +625,30 @@ export default {
     },
 
     async reject(companyId) {
-      if (!confirm('Reject this company? They will be notified.')) return
+      if (!confirm('Reject this company? They will be notified.'))
+        return
       this.rowBusy[companyId] = true
       try   { await this.adminStore.rejectCompany(companyId) }
       catch (e) { alert(e.message) }
       finally   { this.rowBusy[companyId] = false }
     },
 
-    // ── Student actions ───────────────────────────────────────────────────
-    async blockStudent(userId) {
-      if (!confirm('Block this student? They will not be able to login.')) return
-      this.rowBusy[userId] = true
-      try   { await this.adminStore.blockStudent(userId) }
+    // ── Drive actions ───────────────────────────────────────────────────
+    async approveDrive(driveId) {
+      this.rowBusy[driveId] = true
+      try   { await this.adminStore.approveDrive(driveId) }
       catch (e) { alert(e.message) }
-      finally   { this.rowBusy[userId] = false }
+      finally   { this.rowBusy[driveId] = false }
     },
 
-    async unblockStudent(userId) {
-      this.rowBusy[userId] = true
-      try   { await this.adminStore.unblockStudent(userId) }
+    async rejectDrive(driveId) {
+      if (!confirm('Reject this drive?')) return
+      this.rowBusy[driveId] = true
+      try   { await this.adminStore.rejectDrive(driveId) }
       catch (e) { alert(e.message) }
-      finally   { this.rowBusy[userId] = false }
+      finally   { this.rowBusy[driveId] = false }
     },
 
-    // ── Drive actions ─────────────────────────────────────────────────────
     async toggleDrive(driveId) {
       this.rowBusy[driveId] = true
       try   { await this.adminStore.toggleDriveStatus(driveId) }
@@ -486,83 +657,180 @@ export default {
     },
 
     async deleteDrive(driveId) {
-      if (!confirm('Permanently delete this drive? This cannot be undone.')) return
+      if (!confirm('Permanently delete this drive?')) return
       this.rowBusy[driveId] = true
       try   { await this.adminStore.deleteDrive(driveId) }
       catch (e) { alert(e.message) }
       finally   { this.rowBusy[driveId] = false }
     },
 
-    // ── Utilities ─────────────────────────────────────────────────────────
-    drivesForCompany(companyId) {
-      return this.adminStore.drives.filter(d => d.company_id === companyId).length
+    async exportData(type) {
+      try { await this.adminStore.exportData(type) }
+      catch (e) { alert(e.message ?? 'Export failed') }
     },
 
-    formatDate(d) {
-      if (!d) return '—'
-      return new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+    // ── Charts ──────────────────────────────────────────────────────────
+    renderCharts() {
+      this.renderStatusChart()
+      this.renderBranchChart()
+    },
+
+    renderStatusChart() {
+      const el = this.$refs.statusChart
+      if (!el) return
+      const dist = this.adminStore.applicationStatusDistribution
+      const data = [
+        dist.Applied, dist.Shortlisted,
+        dist.Selected, dist.Rejected,
+      ]
+      if (data.every(v => v === 0)) return
+      if (this._statusChart) this._statusChart.destroy()
+      this._statusChart = new Chart(el, {
+        type: 'doughnut',
+        data: {
+          labels: ['Applied', 'Shortlisted', 'Selected', 'Rejected'],
+          datasets: [{
+            data,
+            backgroundColor: ['#0d6efd','#0dcaf0','#198754','#dc3545'],
+            borderWidth: 2,
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'bottom', labels: { boxWidth: 12 } },
+          },
+        },
+      })
+    },
+
+    renderBranchChart() {
+      const el = this.$refs.branchChart
+      if (!el) return
+      const map = this.adminStore.studentsByBranch
+      const labels = Object.keys(map)
+      const values = Object.values(map)
+      if (!labels.length) return
+      if (this._branchChart) this._branchChart.destroy()
+      this._branchChart = new Chart(el, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Students',
+            data: values,
+            backgroundColor: '#0d6efd',
+            borderRadius: 4,
+          }],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { beginAtZero: true, ticks: { precision: 0 } },
+          },
+        },
+      })
+    },
+
+    // ── Utilities ───────────────────────────────────────────────────────
+    fmtDate(d) {
+      return d
+        ? new Date(d).toLocaleDateString('en-IN', {
+            day: 'numeric', month: 'short', year: 'numeric',
+          })
+        : '—'
+    },
+
+    fmtSalary(s, currency = 'INR') {
+      if (!s) return '—'
+      const sym = currency === 'INR' ? '₹' : currency
+      return s >= 100_000
+        ? `${sym}${(s / 100_000).toFixed(1)} LPA`
+        : `${sym}${s.toLocaleString('en-IN')}`
     },
 
     isUrgent(deadline) {
       if (!deadline) return false
       const diff = new Date(deadline) - new Date()
-      return diff > 0 && diff < 3 * 86400000
+      return diff > 0 && diff < 3 * 86_400_000
     },
 
     initials(name) {
-      return (name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+      return (name || '?')
+        .split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+    },
+
+    statusBadge(s) {
+      return {
+        Open: 'bg-success', Closed: 'bg-secondary',
+        Completed: 'bg-primary',
+        Applied: 'bg-primary', Shortlisted: 'bg-info text-dark',
+        Selected: 'bg-success', Rejected: 'bg-danger',
+      }[s] ?? 'bg-secondary'
     },
 
     approvalBadge(s) {
-      return { Pending: 'bg-warning text-dark', Approved: 'bg-success', Rejected: 'bg-danger' }[s] || 'bg-secondary'
+      return {
+        Pending:  'bg-warning text-dark',
+        Approved: 'bg-success',
+        Rejected: 'bg-danger',
+      }[s] ?? 'bg-secondary'
     },
 
-    async viewApplicants(driveId) {
-      this.applicantsModal = { show: true, applicants: [], loading: true }
-      try {
-        this.applicantsModal.applicants = await this.$root.$api.get(`/admin/drives/${driveId}/applicants`)
-      } catch (e) {
-        alert(e.message)
-        this.applicantsModal.show = false
-      } finally {
-        this.applicantsModal.loading = false
-      }
+    placementBadge(s) {
+      return {
+        Offered:  'bg-warning text-dark',
+        Joined:   'bg-success',
+        Declined: 'bg-danger',
+      }[s] ?? 'bg-secondary'
     },
+  },
 
-    driveBadge(s) {
-      return { Open: 'bg-success', Closed: 'bg-secondary', Completed: 'bg-primary' }[s] || 'bg-secondary'
-    },
-
-    formatSalary(salary, currency = 'INR') {
-      if (!salary) return '—'
-      const sym = currency === 'INR' ? '₹' : currency
-      return salary >= 100000
-        ? `${sym}${(salary / 100000).toFixed(1)} LPA`
-        : `${sym}${salary.toLocaleString('en-IN')}`
-    },
+  // Clean up Chart.js instances
+  beforeUnmount() {
+    this._statusChart?.destroy()
+    this._branchChart?.destroy()
   },
 }
 </script>
 
 <style scoped>
 .stat-card {
-  padding: 1.1rem 1.25rem;
-  border-radius: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: .4rem;
+  padding: 1.1rem 1.25rem; border-radius: 10px;
+  display: flex; flex-direction: column; gap: .4rem;
   box-shadow: 0 2px 8px rgba(0,0,0,.12);
+  transition: transform .15s;
 }
+.stat-card:hover { transform: translateY(-2px); }
 .company-avatar {
   width: 32px; height: 32px; border-radius: 6px;
   background: #e9ecef; color: #495057;
   display: flex; align-items: center; justify-content: center;
   font-size: .7rem; font-weight: 700; flex-shrink: 0;
 }
-.tab-content { border: 1px solid #dee2e6; border-top: none; }
+.drive-card { transition: transform .15s; }
+.drive-card:hover { transform: translateY(-2px); }
+.tab-content {
+  border: 1px solid #dee2e6; border-top: none;
+}
 .empty-state { text-align: center; }
-.nav-tabs .nav-link         { color: #6c757d; border: none; border-bottom: 3px solid transparent; padding: .75rem 1.25rem; }
-.nav-tabs .nav-link.active  { color: #0d6efd; border-bottom-color: #0d6efd; background: none; font-weight: 600; }
-.nav-tabs .nav-link:hover   { color: #0d6efd; background: #f8f9fa; }
-.table th { font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; color: #6c757d; }
+.nav-tabs .nav-link {
+  color: #6c757d; border: none;
+  border-bottom: 3px solid transparent;
+  padding: .75rem 1.25rem;
+}
+.nav-tabs .nav-link.active {
+  color: #0d6efd; border-bottom-color: #0d6efd;
+  background: none; font-weight: 600;
+}
+.nav-tabs .nav-link:hover {
+  color: #0d6efd; background: #f8f9fa;
+}
+.table th {
+  font-size: .8rem; text-transform: uppercase;
+  letter-spacing: .04em; color: #6c757d;
+}
 </style>

@@ -2,6 +2,9 @@
 <template>
   <div id="app">
     <Navbar v-if="showShell" />
+    <nav class="navbar navbar-expand-lg navbar-white
+                bg-white shadow-sm px-3 py-2 mb-4">
+    </nav>
     <main class="flex-grow-1">
       <router-view />
     </main>

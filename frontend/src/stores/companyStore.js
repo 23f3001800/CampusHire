@@ -1,48 +1,67 @@
-import { defineStore } from 'pinia'
-import { useUserStore } from './userStore'
-import api from '@/utils/api'
+import { defineStore }   from 'pinia'
+import { useUserStore }  from './userStore'
+import api               from '@/utils/api'
 
 const CACHE_TTL = 5 * 60 * 1000
 
 export const useCompanyStore = defineStore('company', {
+
+  // ─── State ────────────────────────────────────────────────────────────────
   state: () => ({
-    profile:    null,
-    drives:     [],
-    applicants: {},   // { [driveId]: Application[] }
-    loading:        false,
+    profile:        null,
+    drives:         [],
+    applicants:     {},   // { [driveId]: Application[] }
+    interviews:     {},   // { [applicationId]: Interview }
     loadingProfile: false,
     loadingDrives:  false,
+    loadingApps:    false,
     error:          null,
-    _ts: {},
+    _ts:            {},
   }),
 
+  // ─── Getters ──────────────────────────────────────────────────────────────
   getters: {
-    // ── Profile completion (delegates to userStore) ──────────────────────
+
+    // Profile completion — delegates to userStore
     isProfileComplete(state) {
       return useUserStore().isProfileComplete(state.profile, 'company')
     },
     profileCompletionDetails(state) {
-      return useUserStore().getProfileCompletionDetails(state.profile, 'company')
+      return useUserStore().getProfileCompletionDetails(
+        state.profile, 'company'
+      )
     },
     missingFieldsWithLabels(state) {
-      return useUserStore().getMissingFieldsWithLabels(state.profile, 'company')
+      return useUserStore().getMissingFieldsWithLabels(
+        state.profile, 'company'
+      )
     },
 
-    companyName:     s => s.profile?.company_name || '',
-    approvalStatus:  s => s.profile?.approval_status || 'Pending',
-    isApproved:      s => s.profile?.approval_status === 'Approved',
+    // Profile shortcuts
+    companyName:    s => s.profile?.company_name   || '',
+    approvalStatus: s => s.profile?.approval_status || 'Pending',
+    isApproved:     s => s.profile?.approval_status === 'Approved',
+    logoUrl:        s => s.profile?.logo_url        || null,
 
+    // Drive filters
     activeDrives:    s => s.drives.filter(d => d.status === 'Open'),
     closedDrives:    s => s.drives.filter(d => d.status === 'Closed'),
     completedDrives: s => s.drives.filter(d => d.status === 'Completed'),
+    pendingDrives:   s => s.drives.filter(
+      d => d.admin_approval_status === 'Pending'
+    ),
 
-    getDriveById:    s => id => s.drives.find(d => d.id === id) || null,
+    getDriveById: s => id => s.drives.find(d => d.id === id) || null,
 
-    totalApplicants: s => Object.values(s.applicants)
-                              .reduce((sum, arr) => sum + arr.length, 0),
+    // Applicant helpers
+    totalApplicants: s =>
+      Object.values(s.applicants)
+            .reduce((sum, arr) => sum + arr.length, 0),
 
-    getApplicantsForDrive: s => driveId => s.applicants[driveId] || [],
+    getApplicantsForDrive: s => driveId =>
+      s.applicants[driveId] || [],
 
+    // Per-drive pipeline stats — reads from in-memory cache
     getDriveStats: s => driveId => {
       const apps = s.applicants[driveId] || []
       return {
@@ -54,89 +73,230 @@ export const useCompanyStore = defineStore('company', {
       }
     },
 
-    recentApplicants: s => Object.values(s.applicants)
-                               .flat()
-                               .sort((a, b) => new Date(b.applied_date) - new Date(a.applied_date))
-                               .slice(0, 10),
+    // 10 most recent applicants across all drives
+    recentApplicants: s =>
+      Object.values(s.applicants)
+            .flat()
+            .sort((a, b) =>
+              new Date(b.applied_date) - new Date(a.applied_date)
+            )
+            .slice(0, 10),
+
+    getInterviewForApp: s => applicationId =>
+      s.interviews[applicationId] || null,
   },
 
+  // ─── Actions ──────────────────────────────────────────────────────────────
   actions: {
-    _fresh(key) {
-      return this._ts[key] && Date.now() - this._ts[key] < CACHE_TTL
-    },
 
+    // ── Cache helpers ───────────────────────────────────────────────────────
+    _fresh(key) {
+      return this._ts[key] &&
+             Date.now() - this._ts[key] < CACHE_TTL
+    },
+    _clearError() { this.error = null },
+
+    // ── Profile ─────────────────────────────────────────────────────────────
+    // GET /company/:id   → returns company_fields directly (no .data wrapper)
     async fetchProfile(companyId, force = false) {
       if (!force && this._fresh('profile') && this.profile) return
       this.loadingProfile = true
+      this._clearError()
       try {
         this.profile     = await api.get(`/company/${companyId}`)
         this._ts.profile = Date.now()
-      } catch (e) { this.error = e.message }
-      finally { this.loadingProfile = false }
+      } catch (e) {
+        this.error = e?.message ?? 'Failed to load profile.'
+        throw e
+      } finally {
+        this.loadingProfile = false
+      }
     },
 
+    // PUT /company/:id   → returns updated company_fields directly
     async updateProfile(companyId, data) {
       this.loadingProfile = true
+      this._clearError()
       try {
         this.profile = await api.put(`/company/${companyId}`, data)
-      } catch (e) { this.error = e.message; throw e }
-      finally { this.loadingProfile = false }
+        this._ts.profile = Date.now()
+        return this.profile
+      } catch (e) {
+        this.error = e?.message ?? 'Failed to update profile.'
+        throw e
+      } finally {
+        this.loadingProfile = false
+      }
     },
 
+    // ── Drives ──────────────────────────────────────────────────────────────
+    // GET /company/:id/drives  → returns drive_fields[] directly
     async fetchDrives(companyId, force = false) {
       if (!force && this._fresh('drives') && this.drives.length) return
       this.loadingDrives = true
+      this._clearError()
       try {
-        this.drives     = await api.get(`/company/${companyId}/drives`)
+        const res       = await api.get(`/company/${companyId}/drives`)
+        this.drives     = Array.isArray(res) ? res : []
         this._ts.drives = Date.now()
-      } catch (e) { this.error = e.message }
-      finally { this.loadingDrives = false }
+      } catch (e) {
+        this.error = e?.message ?? 'Failed to load drives.'
+        throw e
+      } finally {
+        this.loadingDrives = false
+      }
     },
 
+    // POST /company/:id/drives → returns new drive_fields directly
     async createDrive(companyId, data) {
       const drive = await api.post(`/company/${companyId}/drives`, data)
       this.drives.unshift(drive)
       return drive
     },
 
+    // PUT /company/:id/drives/:did → returns updated drive_fields directly
     async updateDrive(companyId, driveId, data) {
-      const updated = await api.put(`/company/${companyId}/drives/${driveId}`, data)
+      const updated = await api.put(
+        `/company/${companyId}/drives/${driveId}`, data
+      )
       const i = this.drives.findIndex(d => d.id === driveId)
       if (i !== -1) this.drives[i] = updated
       return updated
     },
 
+    // PATCH /company/:id/drives/:did → returns updated drive_fields directly
     async toggleDriveStatus(companyId, driveId) {
-      const updated = await api.patch(`/company/${companyId}/drives/${driveId}`)
+      const updated = await api.patch(
+        `/company/${companyId}/drives/${driveId}`
+      )
       const i = this.drives.findIndex(d => d.id === driveId)
       if (i !== -1) this.drives[i] = updated
       return updated
     },
 
+    // DELETE /company/:id/drives/:did
     async deleteDrive(companyId, driveId) {
       await api.delete(`/company/${companyId}/drives/${driveId}`)
       this.drives = this.drives.filter(d => d.id !== driveId)
+      delete this.applicants[driveId]
     },
 
+    // ── Applicants ──────────────────────────────────────────────────────────
+    // GET /company/:id/drives/:did/applicants → returns application_fields[]
     async fetchApplicants(companyId, driveId, force = false) {
       const key = `apps_${driveId}`
       if (!force && this._fresh(key) && this.applicants[driveId]) return
+      this.loadingApps = true
+      this._clearError()
       try {
-        this.applicants[driveId] = await api.get(`/company/${companyId}/drives/${driveId}/applicants`)
+        const res = await api.get(
+          `/company/${companyId}/drives/${driveId}/applicants`
+        )
+        this.applicants = {
+          ...this.applicants,
+          [driveId]: Array.isArray(res) ? res : [],
+        }
         this._ts[key] = Date.now()
-      } catch (e) { this.error = e.message }
+      } catch (e) {
+        this.error = e?.message ?? 'Failed to load applicants.'
+        throw e
+      } finally {
+        this.loadingApps = false
+      }
     },
 
-    async updateApplicationStatus(companyId, driveId, applicationId, status, notes = null) {
+    // PUT /company/:id/drives/:did/applicants/:aid
+    // Body: { status, notes? }   → returns updated application_fields
+    async updateApplicationStatus(
+      companyId, driveId, applicationId, status, notes = null
+    ) {
       const updated = await api.put(
         `/company/${companyId}/drives/${driveId}/applicants/${applicationId}`,
-        { status, notes }
+        { status, ...(notes !== null && { notes }) }
       )
-      if (this.applicants[driveId]) {
-        const i = this.applicants[driveId].findIndex(a => a.id === applicationId)
-        if (i !== -1) this.applicants[driveId][i] = updated
-      }
+      this._patchApplicant(driveId, applicationId, updated)
       return updated
+    },
+
+    // ── Interview ────────────────────────────────────────────────────────────
+    // POST /company/:id/applications/:aid/interview
+    // Body: { interview_type, interview_mode, interview_date (ISO),
+    //         interview_link?, interviewer?, instructions? }
+    // — Backend auto-sets application.status = 'Shortlisted' if was 'Applied'
+    async scheduleInterview(companyId, applicationId, data) {
+      const res = await api.post(
+        `/company/${companyId}/applications/${applicationId}/interview`,
+        data
+      )
+      // Store interview in cache
+      this.interviews = {
+        ...this.interviews,
+        [applicationId]: res,
+      }
+      // Reflect status change — backend promotes Applied → Shortlisted
+      for (const driveId of Object.keys(this.applicants)) {
+        const arr = this.applicants[driveId]
+        const i   = arr?.findIndex(a => a.id === applicationId)
+        if (i !== undefined && i !== -1) {
+          const app = arr[i]
+          if (app.status === 'Applied') {
+            this.applicants[driveId][i] = {
+              ...app, status: 'Shortlisted',
+            }
+          }
+        }
+      }
+      return res
+    },
+
+    // PUT /company/:id/applications/:aid/selection
+    // Body: { status: 'Selected'|'Rejected', salary?, joining_date?, notes? }
+    // — Backend creates Placement record automatically when status=Selected
+    async finalizeSelection(companyId, applicationId, data) {
+      const res = await api.put(
+        `/company/${companyId}/applications/${applicationId}/selection`,
+        data
+      )
+      // Patch in-memory applicant list
+      for (const driveId of Object.keys(this.applicants)) {
+        const arr = this.applicants[driveId]
+        const i   = arr?.findIndex(a => a.id === applicationId)
+        if (i !== undefined && i !== -1) {
+          this.applicants[driveId][i] = {
+            ...arr[i], status: data.status,
+          }
+        }
+      }
+      return res
+    },
+
+    // ── Student profile (for company viewing applicant) ───────────────────
+    // GET /student/:id   (roles_accepted: company, admin)
+    async fetchStudentProfile(studentId) {
+      try {
+        return await api.get(`/student/${studentId}`)
+      } catch (e) {
+        this.error = e?.message ?? 'Student not found.'
+        throw e
+      }
+    },
+
+    // ── Internal patch helper ────────────────────────────────────────────────
+    _patchApplicant(driveId, applicationId, updated) {
+      const arr = this.applicants[driveId]
+      if (!arr) return
+      const i = arr.findIndex(a => a.id === applicationId)
+      if (i !== -1) this.applicants[driveId][i] = updated
+    },
+
+    // ── Reset (on logout) ────────────────────────────────────────────────────
+    $reset() {
+      this.profile    = null
+      this.drives     = []
+      this.applicants = {}
+      this.interviews = {}
+      this.error      = null
+      this._ts        = {}
     },
   },
 })

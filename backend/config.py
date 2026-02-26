@@ -1,5 +1,8 @@
 import os
 from datetime import timedelta
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 
@@ -23,6 +26,14 @@ class DevelopmentConfig(Config):
     ALLOWED_EXTENSIONS = {'pdf', 'doc', 'docx'}
 
 
+    CACHE_TYPE = os.getenv('CACHE_TYPE', 'RedisCache')  # RedisCache, SimpleCache, FileSystemCache
+    CACHE_REDIS_HOST = os.getenv('CACHE_REDIS_HOST', 'localhost')
+    CACHE_REDIS_PORT = int(os.getenv('CACHE_REDIS_PORT', 6379))
+    CACHE_REDIS_DB = int(os.getenv('CACHE_REDIS_DB', 1))  # Different from Celery DB (0)
+    CACHE_REDIS_URL = os.getenv('CACHE_REDIS_URL', 'redis://localhost:6379/1')
+    CACHE_DEFAULT_TIMEOUT = int(os.getenv('CACHE_DEFAULT_TIMEOUT', 300))  # 5 minutes
+    CACHE_KEY_PREFIX = 'campushire_'
+
     # Flask-Mail Configuration
     MAIL_SERVER = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
     MAIL_PORT = int(os.getenv('MAIL_PORT', 587))
@@ -33,10 +44,20 @@ class DevelopmentConfig(Config):
     MAIL_DEFAULT_SENDER = os.getenv('MAIL_DEFAULT_SENDER', 'noreply@campushire.edu')
 
 
+
     # Celery configuration for development
      # Celery
     CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379/0')
     CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
+
+    ## caching configuration for development
+    CACHE_TYPE = 'RedisCache'
+    CACHE_REDIS_HOST = os.getenv('CACHE_REDIS_HOST', 'localhost')
+    CACHE_REDIS_PORT = int(os.getenv('CACHE_REDIS_PORT', 6379))
+    CACHE_REDIS_DB = 1  # Use DB 1 (Celery uses DB 0)
+    CACHE_DEFAULT_TIMEOUT = 300  # 5 minutes default
+    CACHE_KEY_PREFIX = 'placement_portal_'
+
 
     # CORS (if needed)
     #CORS_ORIGINS = os.getenv('CORS_ORIGINS', 'http://localhost:5173').split(',')
