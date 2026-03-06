@@ -30,7 +30,7 @@
         <div class="d-flex align-items-center
                     justify-content-between mb-4">
           <div>
-            <router-link to="/company"
+            <router-link :to="`/company/${store.profile?.id || ''}`"
                          class="btn btn-outline-secondary
                                 btn-sm mb-2">
               <i class="bi bi-arrow-left me-1"></i>Dashboard

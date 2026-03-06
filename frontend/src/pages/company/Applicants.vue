@@ -171,14 +171,22 @@
 
                     <!-- Applicant info -->
                     <td>
-                      <router-link
-                        :to="`/company/students/${app.student_id}`"
-                        class="fw-semibold text-decoration-none
-                               text-dark">
-                        {{ app.student_name }}
-                      </router-link>
-                      <div class="small text-muted">
-                        {{ app.student_email }}
+                      <div class="d-flex align-items-center gap-2">
+                        <i class="bi bi-person-circle fs-3 text-primary"></i>
+                        <div>
+                          <router-link
+                            :to="{
+                              path: `/company/students/${app.student_id}`,
+                              query: {
+                                driveId:       driveId,
+                                applicationId: app.id
+                              }
+                            }"
+                            class="fw-semibold text-decoration-none text-primary">
+                            {{ app.student_name }}
+                          </router-link>
+                          <div class="small text-muted">{{ app.student_email }}</div>
+                        </div>
                       </div>
                       <div v-if="app.student_roll"
                            class="small text-muted">
@@ -227,16 +235,6 @@
                     <td class="text-end">
                       <div class="d-flex justify-content-end
                                   gap-1 flex-wrap">
-
-                        <!-- View profile -->
-                        <router-link
-                          :to="`/company/students/${app.student_id}`"
-                          class="btn btn-sm
-                                 btn-outline-secondary"
-                          title="View Profile">
-                          <i class="bi bi-person"></i>
-                        </router-link>
-
                         <!-- Shortlist -->
                         <button
                           v-if="app.status === 'Applied'"

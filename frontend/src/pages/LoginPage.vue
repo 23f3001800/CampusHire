@@ -1,48 +1,47 @@
 <template>
-  <div class="login-page">
-    <div class="container py-5" style="max-width:450px">
-      <div class="card shadow-lg border-0">
+  <form @submit.prevent="submit" novalidate>
 
-        <div class="card-header text-white text-center py-4 border-0">
-          <h2 class="mb-0"><i class="bi bi-briefcase-fill me-2"></i>CampusHire</h2>
-          <p class="text-white-50 mb-0 mt-1">Launch Your Career Today</p>
-        </div>
-
-        <div class="card-body p-4">
-          <form @submit.prevent="submit" novalidate>
-
-            <div class="mb-3">
-              <label class="form-label fw-bold">Email Address</label>
-              <input v-model="email" type="email" class="form-control form-control-lg"
-                placeholder="you@study.com" required />
-            </div>
-
-            <div class="mb-3">
-              <label class="form-label fw-bold">Password</label>
-              <input v-model="password" type="password" class="form-control form-control-lg"
-                placeholder="••••••••" required />
-            </div>
-
-            <div v-if="error" class="alert alert-danger">
-              <i class="bi bi-exclamation-circle me-2"></i>{{ error }}
-            </div>
-
-            <button type="submit" class="btn btn-primary btn-lg w-100 fw-bold" :disabled="loading">
-              <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
-              {{ loading ? 'Signing in…' : 'Sign In' }}
-            </button>
-          </form>
-
-          <hr class="my-4 opacity-25" />
-
-          <p class="text-center text-muted mb-0">
-            Don't have an account?
-            <router-link to="/signup" class="text-primary fw-bold text-decoration-none">Sign up here</router-link>
-          </p>
-        </div>
+    <div class="mb-3">
+      <label class="form-label fw-semibold small">Email Address</label>
+      <div class="input-wrap">
+        <i class="bi bi-envelope input-icon"></i>
+        <input v-model="email" type="email" class="form-control panel-input"
+          placeholder="you@study.com" required />
       </div>
     </div>
-  </div>
+
+    <div class="mb-3">
+      <div class="d-flex justify-content-between align-items-center">
+        <label class="form-label fw-semibold small mb-0">Password</label>
+        <a href="#" class="small text-primary text-decoration-none">Forgot password?</a>
+      </div>
+      <div class="input-wrap mt-1">
+        <i class="bi bi-lock input-icon"></i>
+        <input v-model="password" :type="showPass ? 'text' : 'password'"
+          class="form-control panel-input" placeholder="••••••••" required />
+        <button type="button" class="input-eye" @click="showPass = !showPass">
+          <i :class="`bi bi-eye${showPass ? '-slash' : ''}`"></i>
+        </button>
+      </div>
+    </div>
+
+    <div v-if="error" class="alert alert-danger py-2 small mb-3">
+      <i class="bi bi-exclamation-circle me-1"></i>{{ error }}
+    </div>
+
+    <button type="submit" class="btn btn-primary w-100 fw-bold submit-btn" :disabled="loading">
+      <span v-if="loading" class="spinner-border spinner-border-sm me-2"></span>
+      {{ loading ? 'Signing in…' : 'Sign In' }}
+    </button>
+
+    <p class="text-center text-muted small mt-3 mb-0">
+      Don't have an account?
+      <router-link to="/signup" class="text-primary fw-bold text-decoration-none">
+        Sign up here
+      </router-link>
+    </p>
+
+  </form>
 </template>
 
 <script>
@@ -50,16 +49,14 @@ import { useUserStore } from '@/stores/userStore'
 
 export default {
   name: 'LoginPage',
-  setup() {
-    return { store: useUserStore() }
-  },
-  data:    () => ({ email: '', password: '', loading: false, error: '' }),
+  setup() { return { store: useUserStore() } },
+  data: () => ({ email: '', password: '', loading: false, error: '', showPass: false }),
   created() {
     if (this.store.isAuthenticated) this._redirect()
   },
   methods: {
     async submit() {
-      this.error   = ''
+      this.error = ''
       this.loading = true
       try {
         await this.store.loginWithCredentials('/auth/login', {
@@ -81,13 +78,11 @@ export default {
 </script>
 
 <style scoped>
-.login-page {
-  min-height: 100vh;
-  display: flex;
-  align-items: center;
-  background: linear-gradient(135deg, #f5f7fa, #c3cfe2);
-}
-.card          { border-radius: 12px; overflow: hidden; }
-.card-header   { background: linear-gradient(45deg, #0d6efd, #0dcaf0) !important; }
-.form-control-lg:focus { border-color: #0d6efd; box-shadow: 0 0 0 .2rem rgba(13,110,253,.25); }
+.input-wrap    { position: relative; }
+.input-icon    { position: absolute; left: .75rem; top: 50%; transform: translateY(-50%); color: #adb5bd; pointer-events: none; }
+.input-eye     { position: absolute; right: .75rem; top: 50%; transform: translateY(-50%); background: none; border: none; color: #adb5bd; cursor: pointer; padding: 0; }
+.panel-input   { padding-left: 2.25rem; border-radius: 8px; border: 1.5px solid #dee2e6; font-size: .9rem; }
+.panel-input:focus { border-color: #0d6efd; box-shadow: 0 0 0 3px rgba(13,110,253,.12); }
+.submit-btn    { border-radius: 8px; padding: .6rem; font-size: .95rem; }
+.submit-btn:hover:not(:disabled) { box-shadow: 0 4px 14px rgba(13,110,253,.35); }
 </style>

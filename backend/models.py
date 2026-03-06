@@ -76,7 +76,7 @@ class Student(db.Model):
     resume_link        = db.Column(db.String(500))
     resume_filename    = db.Column(db.String(255))
 
-    applications = db.relationship('Application', backref='student', lazy=True, cascade='all, delete-orphan')
+    application = db.relationship('Application', backref='student', lazy=True, cascade='all, delete-orphan')
     placements   = db.relationship('Placement',   backref='student', lazy=True, cascade='all, delete-orphan')
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -164,6 +164,8 @@ class Application(db.Model):
     reviewed_date  = db.Column(db.DateTime)
     cover_letter   = db.Column(db.Text)
     notes          = db.Column(db.Text)
+    # FIX 1: Added feedback column — visible to student on their applications page
+    feedback       = db.Column(db.Text)
 
     placement = db.relationship('Placement', backref='application', uselist=False)
     interview = db.relationship('Interview', backref='application', uselist=False)
@@ -171,17 +173,22 @@ class Application(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-# Interview Model (NEW)
+# ─── Interview Model ──────────────────────────────────────────────────────────
 
 class Interview(db.Model):
     __tablename__ = 'interview'
     id             = db.Column(db.Integer, primary_key=True)
     application_id = db.Column(db.Integer, db.ForeignKey('application.id'), nullable=False, unique=True)
-    interview_type   = db.Column(db.String(50))   # 'HR','Technical','Managerial'
+    drive_id       = db.Column(db.Integer, db.ForeignKey('placement_drive.id'), nullable=False)
+    company_id     = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False)
+    # FIX 2: Renamed Student_id (capital S typo) → student_id
+    student_id     = db.Column(db.Integer, db.ForeignKey('student.id'), nullable=False)
+
+    interview_type  = db.Column(db.String(50))   # 'HR','Technical','Managerial'
     interview_date  = db.Column(db.DateTime)
     interview_mode  = db.Column(db.String(50))   # 'Online','Onsite','Phone'
     interview_link  = db.Column(db.String(500))  # For online interviews
-    instructions     = db.Column(db.Text)
+    instructions    = db.Column(db.Text)
     interviewer     = db.Column(db.String(255))
     feedback        = db.Column(db.Text)
 
@@ -193,6 +200,7 @@ class Interview(db.Model):
 class Placement(db.Model):
     __tablename__ = 'placement'
     id             = db.Column(db.Integer, primary_key=True)
+    # FIX 3: Added missing student_id FK column — Student.placements relationship requires it
     student_id     = db.Column(db.Integer, db.ForeignKey('student.id'), nullable=False)
     company_id     = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=False)
     application_id = db.Column(db.Integer, db.ForeignKey('application.id'), unique=True)
@@ -201,8 +209,17 @@ class Placement(db.Model):
     salary         = db.Column(db.Float)
     currency       = db.Column(db.String(10), default='INR')
     joining_date   = db.Column(db.Date)
-    offer_letter   = db.Column(db.String(500))
-    status         = db.Column(db.String(20), default='Offered')  # 'Offered','Joined','Declined'
+    # FIX 4: Added feedback column — visible to student on their placements page
+    feedback       = db.Column(db.Text)
+
+    # Offer letter fields
+    offer_letter_filename       = db.Column(db.String(255))
+    offer_letter_url            = db.Column(db.String(500))
+    offer_letter_generated_date = db.Column(db.DateTime)
+    # JSON backup of letter fields (studentName, role, companyName, etc.)
+    offer_letter_data = db.Column(db.JSON)
+
+    status = db.Column(db.String(20), default='Offered')  # 'Offered','Joined','Declined'
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

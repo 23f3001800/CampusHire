@@ -8,18 +8,18 @@ class DriveService:
         'title', 'description', 'job_type', 'location',
         'salary_min', 'salary_max', 'currency',
         'min_cgpa', 'eligible_branches', 'eligible_graduation_year',
-        'experience_required', 'skills_required', 'status',
+        'experience_required', 'skills_required', 'status',"admin_approval_status"
+
     ]
 
     @staticmethod
     def get_all():
         """Returns only drives that are Open AND admin-approved."""
-        return PlacementDrive.query.filter_by(status='Open', admin_approval_status='Approved')\
-                                   .order_by(PlacementDrive.posted_date.desc()).all()
+        return PlacementDrive.query.all()
 
     @staticmethod
     def get_by_id(drive_id):
-        return PlacementDrive.query.get(drive_id)
+        return PlacementDrive.query.filter_by(id=drive_id).first()
 
     @staticmethod
     def create(company_id, data):
@@ -40,6 +40,7 @@ class DriveService:
             drive_date=datetime.fromisoformat(data['drive_date']) if data.get('drive_date') else None,
             application_deadline=datetime.fromisoformat(data['application_deadline']) if data.get('application_deadline') else None,
             status='Open',
+            admin_approval_status='Pending'
         )
         db.session.add(drive)
         db.session.commit()
@@ -62,15 +63,18 @@ class DriveService:
         return drive
 
     @staticmethod
-    def toggle_status(drive_id):
+    def update_drive(drive_id, **fields):
         drive = PlacementDrive.query.get(drive_id)
         if not drive:
             return None
-        drive.status     = 'Closed' if drive.status == 'Open' else 'Open'
+
+        for key, value in fields.items():
+            setattr(drive, key, value)
+
         drive.updated_at = datetime.utcnow()
         db.session.commit()
         return drive
-
+    
     @staticmethod
     def delete(drive_id):
         drive = PlacementDrive.query.get(drive_id)

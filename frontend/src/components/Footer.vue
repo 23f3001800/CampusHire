@@ -1,118 +1,109 @@
 <template>
-  <footer class="bg-dark text-light mt-5 footer-custom">
-    <div class="container py-5">
-      <div class="row g-4">
+  <footer class="footer-custom text-light mt-auto">
+    <div class="container py-4">
+      <div class="row align-items-center g-3">
 
-        <!-- Company Info -->
-        <div class="col-lg-3 col-md-6">
-          <h5 class="fw-bold mb-3">
-            <i class="bi bi-briefcase-fill me-2"></i>CampusHire
-          </h5>
-          <p class="small text-secondary">
-            Connecting talented students with leading companies.
+        <!-- Brand + tagline -->
+        <div class="col-md-4">
+          <div class="fw-bold fs-5 mb-1">
+            <i class="bi bi-briefcase-fill me-2 text-primary"></i>CampusHire
+          </div>
+          <p class="text-secondary small mb-0">
+            Connecting students with leading companies.
           </p>
         </div>
 
-        <!-- Quick Links -->
-        <div class="col-lg-3 col-md-6">
-          <h6 class="fw-bold mb-3">Quick Links</h6>
-          <ul class="list-unstyled footer-links">
-            <li><router-link to="/">Home</router-link></li>
-            <li><router-link to="/jobs">Browse Jobs</router-link></li>
-            <li><router-link to="/about">About</router-link></li>
-            <li><router-link to="/contact">Contact</router-link></li>
-          </ul>
-        </div>
-
-        <!-- Students -->
-        <div class="col-lg-3 col-md-6">
-          <h6 class="fw-bold mb-3">For Students</h6>
-          <ul class="list-unstyled footer-links">
-            <li><a href="#">Create Profile</a></li>
-            <li><a href="#">Career Resources</a></li>
-            <li><a href="#">Interview Tips</a></li>
-          </ul>
-        </div>
-
-        <!-- Contact + Subscribe -->
-        <div class="col-lg-3 col-md-6">
-          <h6 class="fw-bold mb-3">Stay Updated</h6>
-
-          <div class="input-group input-group-sm mb-3">
+        <!-- Subscribe -->
+        <div class="col-md-4">
+          <div class="input-group input-group-sm">
             <input
+              v-model="email"
               type="email"
               class="form-control bg-secondary border-0 text-light"
-              placeholder="Your email"
+              placeholder="Stay updated — enter email"
             />
-            <button class="btn btn-primary">
-              <i class="bi bi-send"></i>
+            <button @click="subscribe" class="btn btn-primary px-3">
+              <i class="bi bi-send-fill"></i>
             </button>
           </div>
+          <div v-if="subscribed" class="text-success small mt-1">
+            <i class="bi bi-check-circle me-1"></i>You're subscribed!
+          </div>
+        </div>
 
+        <!-- Social icons -->
+        <div class="col-md-4 text-md-end">
+          <a href="#" class="social-icon" aria-label="Twitter">
+            <i class="bi bi-twitter-x"></i>
+          </a>
+          <a href="#" class="social-icon" aria-label="LinkedIn">
+            <i class="bi bi-linkedin"></i>
+          </a>
+          <a href="#" class="social-icon" aria-label="GitHub">
+            <i class="bi bi-github"></i>
+          </a>
         </div>
 
       </div>
 
-      <hr class="footer-hr" />
+      <hr class="footer-hr my-3" />
 
-      <!-- Bottom Footer -->
-      <div class="row align-items-center">
-        <div class="col-md-6 small text-secondary">
+      <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <span class="small text-secondary">
           © {{ year }} CampusHire — Built with ❤️
-        </div>
-
-        <div class="col-md-6 text-md-end footer-bottom-links">
-          <router-link to="/privacy">Privacy</router-link>
-          <router-link to="/terms">Terms</router-link>
-          <a href="#">Sitemap</a>
+        </span>
+        <div class="d-flex gap-3">
+          <a href="#" class="footer-link">Privacy</a>
+          <a href="#" class="footer-link">Terms</a>
+          <a href="#" class="footer-link">Contact</a>
         </div>
       </div>
-
     </div>
   </footer>
 </template>
 
-
-
 <script>
 export default {
-  name: "Footer",
+  name: 'Footer',
+  data: () => ({ email: '', subscribed: false }),
   computed: {
-    year() {
-      return new Date().getFullYear();
+    year() { return new Date().getFullYear() }
+  },
+  methods: {
+    subscribe() {
+      if (this.email) {
+        this.subscribed = true
+        this.email = ''
+        setTimeout(() => (this.subscribed = false), 3000)
+      }
     }
   }
-};
+}
 </script>
-
 
 <style scoped>
 .footer-custom {
-  background: #121212;
+  background: #0f0f0f;
+  border-top: 1px solid #1e1e1e;
 }
 
-.footer-links a,
-.footer-bottom-links a {
-  color: #cfcfcf;
+.footer-hr { border-color: #2a2a2a; opacity: 1; }
+
+.footer-link {
+  color: #9a9a9a;
   text-decoration: none;
-  margin-right: 12px;
-  transition: 0.25s;
+  font-size: .85rem;
+  transition: color .2s;
 }
+.footer-link:hover { color: #fff; }
 
-.footer-links a:hover,
-.footer-bottom-links a:hover {
-  color: white;
+.social-icon {
+  color: #9a9a9a;
+  font-size: 1.1rem;
+  margin-left: 16px;
+  text-decoration: none;
+  transition: color .2s, transform .2s;
+  display: inline-block;
 }
-
-.footer-hr {
-  border-color: #2a2a2a;
-  opacity: 1;
-}
-
-@media (max-width: 768px) {
-  .footer-bottom-links {
-    margin-top: 10px;
-    text-align: left !important;
-  }
-}
+.social-icon:hover { color: #0d6efd; transform: translateY(-2px); }
 </style>

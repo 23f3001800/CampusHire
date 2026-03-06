@@ -7,7 +7,7 @@ class CompanyService:
     UPDATABLE = [
         'company_name', 'industry', 'company_size',
         'location', 'website', 'description', 'logo_url',
-        'hr_email', 'hr_contact', 'department', 'designation',
+        'hr_email', 'hr_contact', 'department', 'designation',"approval_status"
     ]
 
     # ── Company Profile ─────────────────────────────────────────────────────
@@ -30,6 +30,7 @@ class CompanyService:
         for field in CompanyService.UPDATABLE:
             if field in data:
                 setattr(company, field, data[field])
+        print(data)
         company.updated_at = datetime.utcnow()
         db.session.commit()
         return company

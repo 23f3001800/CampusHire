@@ -43,31 +43,51 @@
           </button>
 
           <div class="d-flex gap-2 flex-wrap align-items-center">
-            <!-- Drive approval actions -->
-            <template v-if="drive.admin_approval_status ===
-                            'Pending'">
-              <button class="btn btn-success btn-sm"
-                      :disabled="approving"
-                      @click="setApproval('Approved')">
-                <span v-if="approving"
-                      class="spinner-border spinner-border-sm me-1">
-                </span>
-                <i v-else class="bi bi-check-circle me-1"></i>
-                Approve Drive
-              </button>
-              <button class="btn btn-outline-danger btn-sm"
-                      :disabled="approving"
-                      @click="setApproval('Rejected')">
-                <i class="bi bi-x-circle me-1"></i>Reject Drive
-              </button>
-            </template>
-            <span v-else class="badge fs-6 px-3 py-2"
-                  :class="drive.admin_approval_status === 'Approved'
-                    ? 'bg-success' : 'bg-danger'">
+
+            <!-- Approval status badge — always visible for all three states -->
+            <span class="badge fs-6 px-3 py-2"
+                  :class="approvalBadgeClass(drive.admin_approval_status)">
+              <i class="bi me-1"
+                 :class="drive.admin_approval_status === 'Approved'
+                   ? 'bi-check-circle'
+                   : drive.admin_approval_status === 'Rejected'
+                   ? 'bi-x-circle'
+                   : 'bi-hourglass-split'"></i>
               {{ drive.admin_approval_status }}
             </span>
 
-            <!-- Toggle open/close -->
+            <!-- Approve button — shown whenever drive is NOT already Approved -->
+            <button v-if="drive.admin_approval_status !== 'Approved'"
+                    class="btn btn-success btn-sm"
+                    :disabled="approving"
+                    @click="setApproval('Approved')">
+              <span v-if="approving"
+                    class="spinner-border spinner-border-sm me-1">
+              </span>
+              <i v-else class="bi bi-check-circle me-1"></i>
+              Approve
+            </button>
+
+            <!-- Reject button — shown whenever drive is NOT already Rejected -->
+            <button v-if="drive.admin_approval_status !== 'Rejected'"
+                    class="btn btn-outline-danger btn-sm"
+                    :disabled="approving"
+                    @click="setApproval('Rejected')">
+              <span v-if="approving"
+                    class="spinner-border spinner-border-sm me-1">
+              </span>
+              <i v-else class="bi bi-x-circle me-1"></i>
+              Reject
+            </button>
+
+            <!-- Drive open/closed status badge + toggle button -->
+            <span class="badge fs-6 px-3 py-2"
+                  :class="statusBadge(drive.status)">
+              <i class="bi me-1"
+                 :class="drive.status === 'Open'
+                   ? 'bi-door-open' : 'bi-door-closed'"></i>
+              {{ drive.status }}
+            </span>
             <button class="btn btn-outline-secondary btn-sm"
                     :disabled="toggling"
                     @click="toggleStatus">
@@ -79,8 +99,7 @@
                    :class="drive.status === 'Open'
                      ? 'bi-toggle-on text-success'
                      : 'bi-toggle-off'"></i>
-                {{ drive.status === 'Open'
-                    ? 'Close Drive' : 'Reopen Drive' }}
+                {{ drive.status === 'Open' ? 'Close' : 'Reopen' }}
               </template>
             </button>
 
@@ -108,18 +127,15 @@
                 </p>
                 <div class="d-flex flex-wrap gap-1">
                   <span v-if="drive.job_type"
-                        class="badge bg-primary
-                               bg-opacity-10 text-primary">
+                        class="badge bg-primary bg-opacity-10 text-primary">
                     {{ drive.job_type }}
                   </span>
                   <span v-if="drive.salary_max"
-                        class="badge bg-success
-                               bg-opacity-10 text-success">
+                        class="badge bg-success bg-opacity-10 text-success">
                     {{ fmtSalary(drive.salary_max) }}
                   </span>
                   <span v-if="drive.min_cgpa"
-                        class="badge bg-info
-                               bg-opacity-10 text-info">
+                        class="badge bg-info bg-opacity-10 text-info">
                     Min CGPA {{ drive.min_cgpa }}
                   </span>
                   <span class="badge"
@@ -130,7 +146,7 @@
               </div>
               <div class="text-center bg-light rounded-3 p-3">
                 <div class="fs-2 fw-bold text-primary">
-                  {{ drive.total_applications ?? 0 }}
+                  {{ drive.total_applications ?? applicants.length }}
                 </div>
                 <small class="text-muted">Applicants</small>
               </div>
@@ -154,22 +170,19 @@
                      class="form-control form-control-sm"
                      style="max-width:200px"
                      placeholder="Search…" />
+              <!-- Refresh re-fetches the whole drive (including its relation) -->
               <button class="btn btn-sm btn-outline-secondary"
-                      :disabled="store.loadingDriveApps[driveId]"
-                      @click="store.fetchDriveApplicants(
-                        driveId, true)">
-                <span v-if="store.loadingDriveApps[driveId]"
-                      class="spinner-border spinner-border-sm">
-                </span>
+                      :disabled="loading"
+                      @click="loadDrive">
+                <span v-if="loading"
+                      class="spinner-border spinner-border-sm"></span>
                 <i v-else class="bi bi-arrow-clockwise"></i>
               </button>
             </div>
           </div>
           <div class="card-body p-0">
-            <div v-if="store.loadingDriveApps[driveId]"
-                 class="text-center py-4">
-              <div class="spinner-border spinner-border-sm
-                          text-primary"></div>
+            <div v-if="loading" class="text-center py-4">
+              <div class="spinner-border spinner-border-sm text-primary"></div>
             </div>
             <div v-else-if="!applicants.length"
                  class="text-center py-4 text-muted">
@@ -240,27 +253,21 @@
                   <h6 class="section-label mt-4">Skills Required</h6>
                   <div class="d-flex flex-wrap gap-1">
                     <span v-for="s in skillList" :key="s"
-                          class="badge bg-primary
-                                 bg-opacity-10 text-primary">
+                          class="badge bg-primary bg-opacity-10 text-primary">
                       {{ s }}
                     </span>
                   </div>
                 </template>
 
-                <h6 class="section-label mt-4">
-                  Eligible Branches
-                </h6>
+                <h6 class="section-label mt-4">Eligible Branches</h6>
                 <div v-if="branchList.length"
                      class="d-flex flex-wrap gap-1">
                   <span v-for="b in branchList" :key="b"
-                        class="badge bg-info
-                               bg-opacity-10 text-info">
+                        class="badge bg-info bg-opacity-10 text-info">
                     {{ b }}
                   </span>
                 </div>
-                <p v-else class="text-muted small">
-                  All branches eligible
-                </p>
+                <p v-else class="text-muted small">All branches eligible</p>
               </div>
             </div>
           </div>
@@ -271,13 +278,10 @@
                 <h6 class="section-label">Schedule</h6>
                 <div class="d-flex flex-column gap-3">
                   <div>
-                    <small class="text-muted d-block">
-                      Application Deadline
-                    </small>
+                    <small class="text-muted d-block">Application Deadline</small>
                     <span class="fw-bold"
                           :class="{
-                            'text-danger': isUrgent(
-                              drive.application_deadline)
+                            'text-danger': isUrgent(drive.application_deadline)
                           }">
                       {{ fmtDate(drive.application_deadline) }}
                     </span>
@@ -286,21 +290,16 @@
                   </div>
                   <div>
                     <small class="text-muted d-block">Drive Date</small>
-                    <span class="fw-bold">
-                      {{ fmtDate(drive.drive_date) }}
-                    </span>
+                    <span class="fw-bold">{{ fmtDate(drive.drive_date) }}</span>
                   </div>
                   <div>
                     <small class="text-muted d-block">Posted</small>
                     <span>{{ fmtDate(drive.posted_date) }}</span>
                   </div>
                   <div>
-                    <small class="text-muted d-block">
-                      Experience
-                    </small>
+                    <small class="text-muted d-block">Experience</small>
                     <span>
-                      {{ drive.experience_required
-                          || 'Freshers / Any' }}
+                      {{ drive.experience_required || 'Freshers / Any' }}
                     </span>
                   </div>
                 </div>
@@ -327,15 +326,16 @@
 
 <script setup>
 import { ref, computed, onMounted, reactive } from 'vue'
-import { useRouter, useRoute }  from 'vue-router'
-import { useAdminStore }        from '@/stores/adminStore'
+import { useRouter, useRoute } from 'vue-router'
+import { useAdminStore }       from '@/stores/adminStore'
 
-const router   = useRouter()
-const route    = useRoute()
-const store    = useAdminStore()
+const router  = useRouter()
+const route   = useRoute()
+const store   = useAdminStore()
 
-const apiBase  = import.meta.env.VITE_API_BASE_URL ?? ''
-const driveId  = computed(() => parseInt(route.params.driveId))
+const apiBase     = import.meta.env.VITE_API_BASE_URL ?? ''
+const driveId     = computed(() => parseInt(route.params.driveId))
+const companyId   = computed(() => parseInt(route.params.companyId))
 
 const drive    = ref(null)
 const loading  = ref(true)
@@ -346,9 +346,11 @@ const appSearch = ref('')
 const toast    = reactive({ show: false, type: 'success', message: '' })
 
 // ── Derived ───────────────────────────────────────────────────────────────
-const applicants = computed(
-  () => store.driveApplicants[driveId.value] ?? []
-)
+
+// Applicants come directly from the drive relation — no separate store slice needed.
+// If your backend returns the field under a different name (e.g. "applicants"),
+// update the key below accordingly.
+const applicants = computed(() => drive.value?.applications ?? [])
 
 const filteredApplicants = computed(() => {
   if (!appSearch.value) return applicants.value
@@ -377,10 +379,16 @@ const branchList = computed(() =>
 async function loadDrive() {
   loading.value = true; error.value = ''
   try {
-    drive.value = await store.fetchDrive(driveId.value)
-    if (!drive.value) { error.value = 'Drive not found.'; return }
-    // Load applicants in parallel — non-blocking
-    store.fetchDriveApplicants(driveId.value)
+    const result = await store.fetchDrive(driveId.value, companyId.value)
+    if (!result) { error.value = 'Drive not found.'; return }
+
+    // structuredClone breaks the shared reference between drive.value and
+    // the object inside store.drives[]. Without this, patchDrive's _patch()
+    // call does Object.assign(storeObject, serverResponse) which mutates
+    // drive.value in place — overwriting fields like `status` with whatever
+    // the full server response returned, before the component can do its
+    // own surgical merge.
+    drive.value = structuredClone(result)
   } catch (e) {
     error.value = e?.message ?? 'Failed to load.'
   } finally {
@@ -388,14 +396,23 @@ async function loadDrive() {
   }
 }
 
-// ── Approval — PUT /admin/drives/:id/approval ────────────────────────────
+// ── Approval ──────────────────────────────────────────────────────────────
 async function setApproval(status) {
-  if (status === 'Rejected' &&
-      !confirm('Reject this drive?')) return
+  if (status === 'Rejected' && !confirm('Reject this drive?')) return
   approving.value = true
   try {
-    await store[status === 'Approved'
-      ? 'approveDrive' : 'rejectDrive'](driveId.value)
+    // Diagnostic: confirm the IDs before the request is sent.
+    // If companyId prints as NaN here, your router param name is mismatched.
+    console.log('[setApproval] driveId:', driveId.value,
+                'companyId:', companyId.value, 'payload:', { admin_approval_status: status })
+
+    await store.patchDrive(
+      driveId.value,
+      { admin_approval_status: status },
+      companyId.value
+    )
+    // Only update the one field we patched — spreading the full server response
+    // would overwrite unrelated fields like `status` with stale DB values.
     drive.value = { ...drive.value, admin_approval_status: status }
     showToast('success', `Drive ${status.toLowerCase()}.`)
   } catch (e) {
@@ -405,13 +422,20 @@ async function setApproval(status) {
   }
 }
 
-// ── Toggle status — PATCH /admin/drives/:id ───────────────────────────────
+// ── Toggle open / closed ──────────────────────────────────────────────────
+// Same pattern — just patching the status field via patchDrive.
 async function toggleStatus() {
+  const newStatus = drive.value.status === 'Open' ? 'Closed' : 'Open'
   toggling.value = true
   try {
-    const updated = await store.toggleDriveStatus(driveId.value)
-    drive.value = { ...drive.value, status: updated.status }
-    showToast('success', `Drive is now ${updated.status}.`)
+    const updated = await store.patchDrive(
+      driveId.value,
+      { status: newStatus },
+      companyId.value
+    )
+    // Only apply the toggled field — same reasoning as setApproval above.
+    drive.value = { ...drive.value, status: newStatus }
+    showToast('success', `Drive is now ${newStatus}.`)
   } catch (e) {
     showToast('danger', e?.message ?? 'Failed.')
   } finally {
@@ -419,11 +443,11 @@ async function toggleStatus() {
   }
 }
 
-// ── Delete — DELETE /admin/drives/:id ────────────────────────────────────
+// ── Delete ────────────────────────────────────────────────────────────────
 async function confirmDelete() {
   if (!confirm('Permanently delete this drive?')) return
   try {
-    await store.deleteDrive(driveId.value)
+    await store.deleteDrive(driveId.value, companyId.value)
     router.replace('/admin')
   } catch (e) {
     showToast('danger', e?.message ?? 'Delete failed.')
@@ -456,6 +480,13 @@ function isUrgent(d) {
 function statusBadge(s) {
   return {
     Open: 'bg-success', Closed: 'bg-secondary', Completed: 'bg-primary',
+  }[s] ?? 'bg-secondary'
+}
+function approvalBadgeClass(s) {
+  return {
+    Approved: 'bg-success',
+    Rejected:  'bg-danger',
+    Pending:   'bg-warning text-dark',
   }[s] ?? 'bg-secondary'
 }
 function appStatusBadge(s) {

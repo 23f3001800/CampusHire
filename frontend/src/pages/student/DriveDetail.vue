@@ -302,7 +302,7 @@ async function loadDrive() {
   loading.value = true
   error.value   = ''
   try {
-    drive.value = await store.fetchDrive(driveId.value)
+    drive.value = await store.fetchDrive(route.params.companyId, driveId.value)
     if (!drive.value) error.value = 'Drive not found.'
   } catch (e) {
     error.value = e?.message ?? 'Failed to load drive.'
