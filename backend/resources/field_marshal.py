@@ -28,6 +28,7 @@ student_fields = {
     # From User
     'name':  _attr(lambda x: x.user.name  if x.user else None),
     'email': _attr(lambda x: x.user.email if x.user else None),
+    "active": _attr(lambda x: bool(x.user.active) if x.user else False),
 
     # Personal
     'roll_number':     fields.String,
@@ -136,6 +137,7 @@ drive_fields = {
     'application_deadline': fields.DateTime(dt_format='iso8601'),
     'status':               fields.String,
     'admin_approval_status': fields.String,  # Pending/Approved/Rejected by admin
+    #"applications": fields.List(fields.Nested(lambda: application_fields)),  # For counting total applications in stats
 
     # Stats
     'total_applications': fields.Integer(
@@ -233,13 +235,17 @@ placement_fields = {
     'company_name': _attr(lambda x: x.company.company_name if x.company else None),
 
     # Placement Info
-    'position_title': fields.String,
-    'salary':         fields.Float,
-    'currency':       fields.String,
-    'joining_date':   _attr(lambda x: x.joining_date.isoformat() if x.joining_date else None),
-    'offer_letter':   fields.String,
-    'status':         fields.String,
+    'position_title':             fields.String,
+    'salary':                     fields.Float,
+    'currency':                   fields.String,
+    'joining_date':               _attr(lambda x: x.joining_date.isoformat() if x.joining_date else None),
+    'feedback':                   fields.String,          # ← was missing
 
+    # Offer letter — these two replace the old wrong 'offer_letter' key
+    'offer_letter_filename':      fields.String,          # ← replaces 'offer_letter'
+    'offer_letter_url':           fields.String,          # ← was missing
+
+    'status':     fields.String,
     'created_at': fields.DateTime(dt_format='iso8601'),
     'updated_at': fields.DateTime(dt_format='iso8601'),
 }

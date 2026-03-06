@@ -77,8 +77,8 @@
               </h4>
               <p class="text-muted mb-4">
                 {{ store.approvalStatus === 'Rejected'
-                    ? 'Your profile was rejected. Update your details and contact admin.'
-                    : 'Your company profile is being reviewed by our admin team.' }}
+                    ? 'Your profile was rejected. Update your details and contact our admin team to admin@study.com.'
+                    : 'Your company profile is being reviewed by our admin team. Once your profile is approved. You get notified. for more details you can reach our team admin@study.com' }}
               </p>
               <div class="alert"
                    :class="store.approvalStatus === 'Rejected'

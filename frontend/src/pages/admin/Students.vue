@@ -123,19 +123,18 @@
                 <th>Branch</th><th>CGPA</th>
                 <th>Grad Year</th><th>Resume</th>
                 <th>Status</th>
-                <th class="text-end">Actions</th>
+                <!-- <th class="text-end">Actions</th> -->
               </tr>
             </thead>
             <tbody>
               <tr v-for="s in filtered" :key="s.id">
                 <td>
                   <div class="d-flex align-items-center gap-2">
-                    <div class="avatar-sm">{{ initials(s.name) }}</div>
+                    <i class="bi bi-person-circle fs-3 text-primary"></i>
                     <div>
                       <router-link
                         :to="`/admin/students/${s.id}`"
-                        class="fw-semibold text-decoration-none
-                               text-dark">
+                        class="fw-semibold text-decoration-none text-primary">
                         {{ s.name }}
                       </router-link>
                       <div class="small text-muted">{{ s.email }}</div>
@@ -163,42 +162,9 @@
                 </td>
                 <td>
                   <span class="badge"
-                        :class="s.active !== false
-                          ? 'bg-success' : 'bg-secondary'">
-                    {{ s.active !== false ? 'Active' : 'Blocked' }}
+                        :class="s.active ? 'bg-success' : 'bg-danger'">
+                    {{ s.active ? 'Active' : 'Blocked' }}
                   </span>
-                </td>
-                <td class="text-end">
-                  <div class="btn-group btn-group-sm">
-                    <router-link
-                      :to="`/admin/students/${s.id}`"
-                      class="btn btn-outline-primary"
-                      title="View profile">
-                      <i class="bi bi-eye"></i>
-                    </router-link>
-                    <button
-                      v-if="s.active !== false"
-                      class="btn btn-warning"
-                      :disabled="rowBusy[s.user_id]"
-                      title="Block student"
-                      @click="block(s.user_id)">
-                      <span v-if="rowBusy[s.user_id]"
-                            class="spinner-border
-                                   spinner-border-sm"></span>
-                      <i v-else class="bi bi-slash-circle"></i>
-                    </button>
-                    <button
-                      v-else
-                      class="btn btn-success"
-                      :disabled="rowBusy[s.user_id]"
-                      title="Unblock student"
-                      @click="unblock(s.user_id)">
-                      <span v-if="rowBusy[s.user_id]"
-                            class="spinner-border
-                                   spinner-border-sm"></span>
-                      <i v-else class="bi bi-check-circle"></i>
-                    </button>
-                  </div>
                 </td>
               </tr>
             </tbody>
@@ -277,18 +243,13 @@ export default {
   },
   methods: {
     async block(userId) {
-      if (!confirm('Block this student?')) return
-      this.rowBusy[userId] = true
-      try   { await this.store.blockStudent(userId) }
-      catch (e) { alert(e.message) }
-      finally   { this.rowBusy[userId] = false }
+      await this.store.setStudentActive(userId, false)
     },
+
     async unblock(userId) {
-      this.rowBusy[userId] = true
-      try   { await this.store.unblockStudent(userId) }
-      catch (e) { alert(e.message) }
-      finally   { this.rowBusy[userId] = false }
+      await this.store.setStudentActive(userId, true)
     },
+
     async exportStudents() {
       try { await this.store.exportData('students') }
       catch (e) { alert(e.message ?? 'Export failed') }

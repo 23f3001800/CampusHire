@@ -101,9 +101,9 @@
       <ul class="nav nav-tabs mb-0 border-bottom">
         <li class="nav-item" v-for="t in tabs" :key="t.key">
           <a class="nav-link px-4 py-3"
-             :class="{ active: activeTab === t.key }"
-             @click.prevent="activeTab = t.key"
-             href="#">
+            :class="{ active: activeTab === t.key }"
+            @click.prevent="activeTab = t.key"
+            href="#">
             <i :class="`bi ${t.icon} me-1`"></i>{{ t.label }}
             <span v-if="t.badge"
                   class="badge bg-danger rounded-pill ms-1">
@@ -115,86 +115,6 @@
 
       <div class="tab-content bg-white rounded-bottom
                   shadow-sm p-4">
-
-        <!-- ── PENDING APPROVALS ────────────────────────────────── -->
-        <div v-show="activeTab === 'pending'">
-          <div v-if="!adminStore.pendingCompanies.length"
-               class="empty-state py-5">
-            <i class="bi bi-check-circle-fill text-success
-                       fs-1 d-block mb-2"></i>
-            <p class="text-muted mb-0">
-              All companies reviewed — no pending approvals.
-            </p>
-          </div>
-          <div v-else class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
-              <thead class="table-light">
-                <tr>
-                  <th>Company</th><th>Recruiter</th>
-                  <th>Industry</th><th>Location</th>
-                  <th>Registered</th>
-                  <th class="text-end">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr v-for="c in adminStore.pendingCompanies"
-                    :key="c.id">
-                  <td>
-                    <div class="d-flex align-items-center gap-2">
-                      <img v-if="c.logo_url" :src="c.logo_url"
-                           class="rounded"
-                           style="width:32px;height:32px;
-                                  object-fit:cover"
-                           @error="c.logo_url = null" />
-                      <div v-else class="company-avatar">
-                        {{ initials(c.company_name) }}
-                      </div>
-                      <div>
-                        <div class="fw-semibold">
-                          {{ c.company_name || '—' }}
-                        </div>
-                        <small v-if="c.website"
-                               class="text-muted">
-                          {{ c.website }}
-                        </small>
-                      </div>
-                    </div>
-                  </td>
-                  <td>
-                    {{ c.recruiter_name }}
-                    <br>
-                    <small class="text-muted">
-                      {{ c.recruiter_email }}
-                    </small>
-                  </td>
-                  <td>{{ c.industry || '—' }}</td>
-                  <td>{{ c.location  || '—' }}</td>
-                  <td>
-                    <small>{{ fmtDate(c.created_at) }}</small>
-                  </td>
-                  <td class="text-end">
-                    <button class="btn btn-success btn-sm me-1"
-                            :disabled="rowBusy[c.id]"
-                            @click="approve(c.id)">
-                      <span v-if="rowBusy[c.id]"
-                            class="spinner-border
-                                   spinner-border-sm"></span>
-                      <template v-else>
-                        <i class="bi bi-check-lg me-1"></i>Approve
-                      </template>
-                    </button>
-                    <button class="btn btn-outline-danger btn-sm"
-                            :disabled="rowBusy[c.id]"
-                            @click="reject(c.id)">
-                      <i class="bi bi-x-lg me-1"></i>Reject
-                    </button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-
         <!-- ── PLACEMENT DRIVES ────────────────────────────────── -->
         <div v-show="activeTab === 'drives'">
           <!-- Filters -->
@@ -329,47 +249,18 @@
                   <!-- Drive actions -->
                   <div class="d-flex gap-2 flex-wrap">
                     <router-link
-                      :to="`/admin/drives/${d.id}`"
+                      :to="`/admin/${d.company_id}/drives/${d.id}`"
                       class="btn btn-outline-primary btn-sm flex-grow-1">
                       <i class="bi bi-eye me-1"></i>Details
                     </router-link>
 
                     <!-- Approval quick-actions on card -->
-                    <template v-if="d.admin_approval_status ===
-                                    'Pending'">
-                      <button class="btn btn-success btn-sm"
-                              :disabled="rowBusy[d.id]"
-                              @click="approveDrive(d.id)">
-                        <span v-if="rowBusy[d.id]"
-                              class="spinner-border
-                                     spinner-border-sm"></span>
-                        <i v-else class="bi bi-check-lg"></i>
-                      </button>
-                      <button class="btn btn-outline-danger btn-sm"
-                              :disabled="rowBusy[d.id]"
-                              @click="rejectDrive(d.id)">
-                        <i class="bi bi-x-lg"></i>
-                      </button>
-                    </template>
-
-                    <button
-                      class="btn btn-outline-secondary btn-sm"
-                      :disabled="rowBusy[d.id]"
-                      :title="d.status === 'Open'
-                        ? 'Close drive' : 'Reopen drive'"
-                      @click="toggleDrive(d.id)">
-                      <i class="bi"
-                         :class="d.status === 'Open'
-                           ? 'bi-toggle-on text-success'
-                           : 'bi-toggle-off'"></i>
-                    </button>
-
-                    <button class="btn btn-outline-danger btn-sm"
-                            :disabled="rowBusy[d.id]"
-                            title="Delete drive"
-                            @click="deleteDrive(d.id)">
-                      <i class="bi bi-trash"></i>
-                    </button>
+                    <td>
+                      <span class="badge bg-light text-dark border">
+                        <i class="bi bi-people"></i>
+                        {{ d.application_count || 0 }} Applications
+                      </span>
+                    </td>
                   </div>
                 </div>
               </div>
@@ -503,11 +394,12 @@ export default {
     return {
       adminStore: useAdminStore(),
       userStore:  useUserStore(),
+      id:    useUserStore().id,
     }
   },
 
   data: () => ({
-    activeTab:          'pending',
+    activeTab: 'drives',
     exportOptions: [
       { type: 'students', icon: 'bi-people-fill', color: 'primary', label: 'Students' },
       { type: 'companies', icon: 'bi-building', color: 'success', label: 'Companies' },
@@ -527,11 +419,11 @@ export default {
     tabs() {
       const s = this.adminStore.dashboardStats
       return [
-        {
-          key: 'pending', icon: 'bi-hourglass-split',
-          label: 'Pending Approvals',
-          badge: s.pending_companies || null,
-        },
+        // {
+        //   key: 'pending', icon: 'bi-hourglass-split',
+        //   label: 'Pending Approvals',
+        //   badge: s.pending_companies || null,
+        // },
         { key: 'drives',     icon: 'bi-briefcase', label: 'Placement Drives' },
         { key: 'placements', icon: 'bi-trophy',    label: 'Placements'       },
       ]
@@ -560,21 +452,27 @@ export default {
         },
         {
           label: 'Open Drives',
-          value: s.open_drives       ?? 0,
-          bg: 'bg-info', icon: 'bi-briefcase-fill',
-          to: '/admin',
+          value: s.open_drives ?? 0,
+          bg: 'bg-info', 
+          icon: 'bi-briefcase-fill',
+          to: `/admin/1`, // Use '/admin/id' if it's meant to be a literal string
+          active: false,
         },
         {
           label: 'Placed',
-          value: s.total_placements  ?? 0,
-          bg: 'bg-success', icon: 'bi-trophy-fill',
-          to: '/admin',
+          value: s.total_placements ?? 0,
+          bg: 'bg-success', 
+          icon: 'bi-trophy-fill',
+          to: `/admin/1`,
+          active: true, // Sets this tab as active
         },
         {
           label: 'Applications',
-          value: s.total_applications?? 0,
-          bg: 'bg-secondary', icon: 'bi-file-earmark-text-fill',
-          to: '/admin',
+          value: s.total_applications ?? 0,
+          bg: 'bg-secondary', 
+          icon: 'bi-file-earmark-text-fill',
+          to: `/admin/1`,
+          active: false,
         },
       ]
     },
@@ -616,54 +514,6 @@ export default {
   },
 
   methods: {
-    // ── Company actions ─────────────────────────────────────────────────
-    async approve(companyId) {
-      this.rowBusy[companyId] = true
-      try   { await this.adminStore.approveCompany(companyId) }
-      catch (e) { alert(e.message) }
-      finally   { this.rowBusy[companyId] = false }
-    },
-
-    async reject(companyId) {
-      if (!confirm('Reject this company? They will be notified.'))
-        return
-      this.rowBusy[companyId] = true
-      try   { await this.adminStore.rejectCompany(companyId) }
-      catch (e) { alert(e.message) }
-      finally   { this.rowBusy[companyId] = false }
-    },
-
-    // ── Drive actions ───────────────────────────────────────────────────
-    async approveDrive(driveId) {
-      this.rowBusy[driveId] = true
-      try   { await this.adminStore.approveDrive(driveId) }
-      catch (e) { alert(e.message) }
-      finally   { this.rowBusy[driveId] = false }
-    },
-
-    async rejectDrive(driveId) {
-      if (!confirm('Reject this drive?')) return
-      this.rowBusy[driveId] = true
-      try   { await this.adminStore.rejectDrive(driveId) }
-      catch (e) { alert(e.message) }
-      finally   { this.rowBusy[driveId] = false }
-    },
-
-    async toggleDrive(driveId) {
-      this.rowBusy[driveId] = true
-      try   { await this.adminStore.toggleDriveStatus(driveId) }
-      catch (e) { alert(e.message) }
-      finally   { this.rowBusy[driveId] = false }
-    },
-
-    async deleteDrive(driveId) {
-      if (!confirm('Permanently delete this drive?')) return
-      this.rowBusy[driveId] = true
-      try   { await this.adminStore.deleteDrive(driveId) }
-      catch (e) { alert(e.message) }
-      finally   { this.rowBusy[driveId] = false }
-    },
-
     async exportData(type) {
       try { await this.adminStore.exportData(type) }
       catch (e) { alert(e.message ?? 'Export failed') }

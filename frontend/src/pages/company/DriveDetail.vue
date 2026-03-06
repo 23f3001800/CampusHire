@@ -214,7 +214,7 @@
                     </span>
                   </router-link>
                   <router-link
-                    to="/company"
+                    :to="`/company/${userStore.companyId}`"
                     class="btn btn-outline-secondary">
                     <i class="bi bi-house-door me-2"></i>Back to Dashboard
                   </router-link>
@@ -595,7 +595,8 @@ async function confirmDelete() {
   if (!confirm('Permanently delete this drive and all its applications?')) return
   try {
     await companyStore.deleteDrive(userStore.companyId, driveId.value)
-    router.replace('/company')
+    alert("drive deleted successfully")
+    router.replace(`/company/${userStore.companyId}`)
   } catch (e) {
     showToast('danger', e?.message ?? 'Failed to delete drive.')
   }

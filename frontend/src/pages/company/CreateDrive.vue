@@ -1,7 +1,18 @@
 <template>
   <div class="bg-light min-vh-100 py-4">
-    <div class="container" style="max-width:780px">
-
+    <div v-if="!store.isApproved" class="card border-0 shadow-sm mt-5 mx-auto" style="max-width:800px">
+        <div class="card-body text-center py-5">
+          <i class="bi bi-shield-lock text-warning display-1 mb-3 d-block"></i>
+          <h3 class="fw-bold">Account is not approved</h3>
+          <p class="text-muted mb-4">
+            You will be able to post placement drives as soon as your account is approved.
+          </p>
+          <router-link :to="`/company/${userStore.companyId}`" class="btn btn-primary">
+            <i class="bi bi-arrow-left me-1"></i> Return to Dashboard
+          </router-link>
+      </div>
+    </div>
+    <div v-else class="container" style="max-width:780px">
       <div class="d-flex align-items-center justify-content-between mb-4">
         <div>
           <h3 class="fw-bold mb-0">Post a Placement Drive</h3>
@@ -92,7 +103,7 @@
               <label class="form-label fw-semibold">Graduation Year</label>
               <input class="form-control" v-model.number="form.eligible_graduation_year" type="number"
                 placeholder="2025" min="2020" max="2030" />
-              <small class="text-muted">Leave blank for all years</small>
+              <small class="text-info fw-semibold">Leave blank for all years</small>
             </div>
             <div class="col-12">
               <label class="form-label fw-semibold">Eligible Branches</label>
@@ -103,7 +114,7 @@
                   <label class="form-check-label small" :for="`branch-${b.value}`">{{ b.label }}</label>
                 </div>
               </div>
-              <small class="text-muted">Leave all unchecked = all branches eligible</small>
+              <small class="text-info fw-semibold">Leave all unchecked = all branches eligible</small>
             </div>
             <div class="col-12">
               <label class="form-label fw-semibold">Skills Required</label>
@@ -127,7 +138,7 @@
             <div class="col-md-6">
               <label class="form-label fw-semibold">Drive Date</label>
               <input class="form-control" v-model="form.drive_date" type="datetime-local" />
-              <small class="text-muted">Date of interviews / selection</small>
+              <small class="text-info fw-semibold">Date of interviews / selection</small>
             </div>
           </div>
 

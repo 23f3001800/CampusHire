@@ -1,10 +1,11 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useUserStore } from '@/stores/userStore'
 
-// ── Lazy-loaded pages ─────────────────────────────────────────────────────────
-const HomePage         = () => import('@/pages/HomePage.vue')
-const AboutPage        = () => import('@/pages/AboutPage.vue')
-const LoginPage        = () => import('@/pages/LoginPage.vue')
+// ── Lazy-loaded pages ─
+// ────────────────────────────────────────────────────────
+// const HomePage         = () => import('@/pages/HomePage.vue')
+// const AboutPage        = () => import('@/pages/AboutPage.vue')
+// const LoginPage        = () => import('@/pages/LoginPage.vue')
 const SignupPage       = () => import('@/pages/SignupPage.vue')
 const NotFound         = () => import('@/pages/NotFound.vue')
 const Unauthorized     = () => import('@/pages/Unauthorized.vue')
@@ -34,24 +35,25 @@ const AdminCompanyView  = () => import('@/pages/admin/CompanyView.vue')
 
 // common routes for both student compny admin can be added here if needed
 
-const  viewprofile = () => import('@/pages/company/ViewProfile.vue')
 const  viewdrive = () => import('@/pages/company/DriveDetail.vue')
 
 // ── Route definitions ─────────────────────────────────────────────────────────
 const routes = [
-  // Public
-  { path: '/',        name: 'Home',   component: HomePage },
-  { path: '/login',   name: 'Login',  component: LoginPage,  meta: { guestOnly: true } },
-  { path: '/signup',  name: 'Signup', component: SignupPage, meta: { guestOnly: true } },
-  { path: '/about',   name: 'About',  component: AboutPage },
-
+  {
+  path: '/',
+  component: () => import('@/pages/HomePage.vue'),
+  children: [
+    { path: 'login',  name: 'Login',  component: () => import('@/pages/LoginPage.vue') },
+    { path: 'signup', name: 'Signup', component: () => import('@/pages/SignupPage.vue') },
+  ]
+  },
   // Student
   { path: '/student/:id',                     name: 'StudentDashboard', component: StudentDashboard, meta: { auth: true} },
   { path: '/student/profile',                  name: 'StudentProfile',   component: StudentProfile,   meta: { auth: true, role: 'student' } },
   { path: '/student/applications',             name: 'StudentApps',      component: StudentApps,      meta: { auth: true} },
   { path: '/student/saved-drives',             name: 'StudentSaved',     component: StudentSaved,     meta: { auth: true, role: 'student' } },
   { path: '/student/placement-history',        name: 'StudentPlacements', component: StudentPlacements, meta: { auth: true, role: 'student' } },
-  {path: '/student/drives/:driveId', name: 'StudentDriveDetail', component: StudentDriveDetail, meta: { auth: true, role: 'student' } },
+  {path: '/student/:companyId/drives/:driveId', name: 'StudentDriveDetail', component: StudentDriveDetail, meta: { auth: true, role: 'student' } },
   {path: '/student/companies/:companyId', name: 'StudentCompanyView', component: StudentCompanyView, meta: { auth: true, role: 'student' } },
   // Company
   { path: '/company/:id',                      name: 'CompanyDashboard', component: CompanyDashboard,   meta: { auth: true, role: 'company' } },
@@ -66,12 +68,11 @@ const routes = [
   { path: '/admin/students',   name: 'AdminStudents',  component: AdminStudents,  meta: { auth: true, role: 'admin' } },
   { path: '/admin/companies',  name: 'AdminCompanies', component: AdminCompanies, meta: { auth: true, role: 'admin' } },
   { path: '/admin/graph-stats', name: 'AdminGraphStats', component: AdminGraphStats, meta: { auth: true, role: 'admin' } },
-  {path: '/admin/drives/:driveId', name: 'AdminDriveDetail', component: AdminDriveDetail, meta: { auth: true, role: 'admin' } },
+  {path: '/admin/:companyId/drives/:driveId', name: 'AdminDriveDetail', component: AdminDriveDetail, meta: { auth: true, role: 'admin' } },
   {path: '/admin/students/:studentId', name: 'AdminStudentView', component: AdminStudentView, meta: { auth: true, role: 'admin' } },
   {path: '/admin/companies/:companyId', name: 'AdminCompanyView', component: AdminCompanyView, meta: { auth: true, role: 'admin' } },
 
   // Common
-  { path: '/view-profile/:userId', name: 'ViewProfile', component: viewprofile, meta: { auth: true} },
   { path: '/view-drive/:driveId', name: 'ViewDrive', component: viewdrive, meta: { auth: true} },
   // Error
   { path: '/unauthorized', name: 'Unauthorized', component: Unauthorized },
@@ -100,6 +101,9 @@ router.beforeEach(async (to, from, next) => {
   }
   if (to.meta.guestOnly && store.isAuthenticated) {
     return next(`/${store.role}/${store.id}`)
+  }
+  if (to.path === '/' && store.isAuthenticated) {
+    return next(`/${store.role}/${store.id}`) // dashboard path
   }
   next()
 })

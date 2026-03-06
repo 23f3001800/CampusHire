@@ -174,21 +174,36 @@ export const useStudentStore = defineStore('student', {
     // ── Eligible Drives ──────────────────────────────────────────────────────
     async fetchEligibleDrives(studentId, force = false) {
       if (!force && this._fresh('drives') && this.eligibleDrives.length) return
+
       this.loadingDrives = true
+
       try {
-        this.eligibleDrives = await api.get(`/student/${studentId}/eligible-drives`)
-        this.ts.drives      = Date.now()
-      } catch (e) {
+        const drives = await api.get(`/drives?student_id=${studentId}`)
+
+        this.eligibleDrives = drives.filter(
+          d => d.admin_approval_status === 'Approved'
+        )
+
+        this.ts.drives = Date.now()
+      } 
+      catch (e) {
         this.error = e.message
-      } finally {
+      } 
+      finally {
         this.loadingDrives = false
       }
     },
 
     // Single drive — public endpoint
-    async fetchDrive(driveId) {
+    async fetchDrive(companyId, driveId) {
       try {
-        return await api.get(`/drives/${driveId}`)
+        const drive = await api.get(`/company/${companyId}/drives/${driveId}`)
+
+        if (drive.admin_approval_status !== 'Approved') {
+          return null
+        }
+
+        return drive
       } catch (e) {
         this.error = e.message
         return null
@@ -224,13 +239,16 @@ export const useStudentStore = defineStore('student', {
     },
 
     // ── Interview ────────────────────────────────────────────────────────────
-    async fetchInterview(studentId, applicationId, force = false) {
+    async fetchInterview(companyId, studentId, applicationId, force = false) {
       const key = `interview_${applicationId}`
       if (!force && this._fresh(key) && this.interviews[applicationId]) return
       this.loadingInterview = true
+      console.log(`Fetching interview details for application ${applicationId}...`)
+      console.log(`API endpoint: /company/${companyId}/applications/${applicationId}/interview?student_id=${studentId}`)
+      console.log(`Student ID: ${studentId}, Application ID: ${applicationId}, Company ID: ${companyId}`)
       try {
         this.interviews[applicationId] = await api.get(
-          `/student/${studentId}/applications/${applicationId}/interview`
+          `/company/${companyId}/applications/${applicationId}/interview?student_id=${studentId}`
         )
         this.ts[key] = Date.now()
       } catch (e) {

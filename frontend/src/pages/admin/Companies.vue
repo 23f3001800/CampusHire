@@ -89,7 +89,7 @@
                 <th>Company</th><th>Recruiter</th>
                 <th>Industry</th><th>Location</th>
                 <th>Drives</th><th>Status</th>
-                <th class="text-end">Actions</th>
+                <!-- <th class="text-end">Actions</th> -->
               </tr>
             </thead>
             <tbody>
@@ -107,8 +107,7 @@
                     <div>
                       <router-link
                         :to="`/admin/companies/${c.id}`"
-                        class="fw-semibold text-decoration-none
-                               text-dark">
+                        class="fw-semibold text-primary text-decoration-none company-link">
                         {{ c.company_name || '—' }}
                       </router-link>
                       <div v-if="c.website"
@@ -138,35 +137,6 @@
                         :class="approvalBadge(c.approval_status)">
                     {{ c.approval_status }}
                   </span>
-                </td>
-                <td class="text-end">
-                  <div class="btn-group btn-group-sm">
-                    <button
-                      v-if="c.approval_status !== 'Approved'"
-                      class="btn btn-outline-success"
-                      :disabled="rowBusy[c.id]"
-                      title="Approve"
-                      @click="approve(c.id)">
-                      <span v-if="rowBusy[c.id]"
-                            class="spinner-border
-                                   spinner-border-sm"></span>
-                      <i v-else class="bi bi-check-lg"></i>
-                    </button>
-                    <button
-                      v-if="c.approval_status !== 'Rejected'"
-                      class="btn btn-outline-danger"
-                      :disabled="rowBusy[c.id]"
-                      title="Reject"
-                      @click="reject(c.id)">
-                      <i class="bi bi-x-lg"></i>
-                    </button>
-                    <router-link
-                      :to="`/admin/companies/${c.id}`"
-                      class="btn btn-outline-primary"
-                      title="View details">
-                      <i class="bi bi-eye"></i>
-                    </router-link>
-                  </div>
                 </td>
               </tr>
             </tbody>
@@ -289,5 +259,8 @@ export default {
 .table th {
   font-size: .8rem; text-transform: uppercase;
   letter-spacing: .04em; color: #6c757d;
+}
+.company-link:hover {
+  text-decoration: underline;
 }
 </style>

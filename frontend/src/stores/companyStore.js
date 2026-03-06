@@ -219,6 +219,27 @@ export const useCompanyStore = defineStore('company', {
     },
 
     // ── Interview ────────────────────────────────────────────────────────────
+
+    // GET /company/:id/applications/:aid/interview
+    // Called on page load so the interview card shows even on a fresh visit.
+    // A 404 means no interview is scheduled yet — that is not an error,
+    // we just leave interviews[applicationId] unset (falsy).
+    async fetchInterviewForApplication(companyId, applicationId) {
+      try {
+        const res = await api.get(
+          `/company/${companyId}/applications/${applicationId}/interview`
+        )
+        this.interviews = { ...this.interviews, [applicationId]: res }
+        return res
+      } catch (e) {
+        // 404 = no interview scheduled yet — silently ignore
+        const status = e?.response?.status ?? e?.status
+        if (status === 404) return null
+        // Any other error is real — bubble up so the caller can decide
+        throw e
+      }
+    },
+
     // POST /company/:id/applications/:aid/interview
     // Body: { interview_type, interview_mode, interview_date (ISO),
     //         interview_link?, interviewer?, instructions? }
@@ -247,6 +268,16 @@ export const useCompanyStore = defineStore('company', {
         }
       }
       return res
+    },
+
+    async cancelInterview(companyId, applicationId) {
+      await api.delete(
+        `/company/${companyId}/applications/${applicationId}/interview`
+      )
+      // Remove from interviews cache
+      const updated = { ...this.interviews }
+      delete updated[applicationId]
+      this.interviews = updated
     },
 
     // PUT /company/:id/applications/:aid/selection
@@ -281,12 +312,85 @@ export const useCompanyStore = defineStore('company', {
       }
     },
 
+    // POST /company/:id/applications/:aid/offer-letter/generate
+    // Body: offerFields object
+    // Returns: { offer_letter_url, offer_letter_filename, offer_letter_generated_date }
+    async generateOfferLetter(companyId, applicationId, offerData) {
+      try {
+        // api utility already unwraps the response — use res directly, not res.data
+        const res = await api.post(
+          `/company/${companyId}/applications/${applicationId}/offer-letter/generate`,
+          offerData
+        )
+        // Patch in-memory placement so the download URL is immediately available
+        for (const applicants of Object.values(this.applicants)) {
+          const app = applicants.find(a => a.id === applicationId)
+          if (app?.placement) {
+            app.placement.offer_letter_filename       = res.offer_letter_filename
+            app.placement.offer_letter_url            = res.offer_letter_url
+            app.placement.offer_letter_generated_date = res.offer_letter_generated_date
+          }
+        }
+        return res   // { offer_letter_url, offer_letter_filename, offer_letter_generated_date }
+      } catch (e) {
+        throw new Error(e?.response?.data?.error ?? e?.message ?? 'Failed to generate offer letter')
+      }
+    },
+
+    // GET /api/uploads/offers/<filename>  (OfferLetterDownloadResource)
+    // filename comes from the generate response — passed in by the caller.
+    async downloadOfferLetter(companyId, applicationId, filename = 'offer-letter.pdf') {
+      try {
+        const token = localStorage.getItem('token')
+        const base  = import.meta.env.VITE_API_BASE_URL ?? ''
+        const res   = await fetch(
+          `${base}/api/uploads/offers/${filename}`,
+          { headers: { 'Authentication-Token': token } }
+        )
+        if (!res.ok) throw new Error(`Download failed (${res.status})`)
+        const blob = await res.blob()
+        const url  = URL.createObjectURL(blob)
+        const a    = document.createElement('a')
+        a.href     = url
+        a.download = filename
+        a.click()
+        URL.revokeObjectURL(url)
+      } catch (e) {
+        throw new Error(e?.message ?? 'Failed to download offer letter')
+      }
+    },
+
     // ── Internal patch helper ────────────────────────────────────────────────
     _patchApplicant(driveId, applicationId, updated) {
       const arr = this.applicants[driveId]
       if (!arr) return
       const i = arr.findIndex(a => a.id === applicationId)
       if (i !== -1) this.applicants[driveId][i] = updated
+    },
+
+    async exportData(type = 'students') {
+      this.exportLoading = true
+      try {
+        const token = localStorage.getItem('token')
+        const base  = import.meta.env.VITE_API_BASE_URL ?? ''
+        const res   = await fetch(
+          `${base}/admin/export?type=${type}`,
+          { headers: { 'Authentication-Token': token } }
+        )
+        if (!res.ok) throw new Error(`Export failed (${res.status})`)
+        const blob = await res.blob()
+        const url  = URL.createObjectURL(blob)
+        const a    = document.createElement('a')
+        a.href     = url
+        a.download = `${type}-${new Date().toISOString().slice(0, 10)}.csv`
+        a.click()
+        URL.revokeObjectURL(url)
+      } catch (e) {
+        this.error = e.message
+        throw e
+      } finally {
+        this.exportLoading = false
+      }
     },
 
     // ── Reset (on logout) ────────────────────────────────────────────────────

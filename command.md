@@ -44,3 +44,18 @@ git pull origin main --rebase
 
 celery -A celery_app worker --loglevel=info
 celery -A celery_app beat --loglevel=info
+
+
+
+### database initalization 
+
+python -m scripts.init_db
+python -m scripts.seed_data
+
+
+python3 -c "
+from app import app
+rules = [str(r) for r in app.url_map.iter_rules() if 'offer' in str(r).lower()]
+print('\n'.join(rules) or 'No offer routes found')
+"
+

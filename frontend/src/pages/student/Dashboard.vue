@@ -284,7 +284,7 @@
                 <!-- Actions -->
                 <div class="d-flex gap-2 mt-3 pt-3 border-top">
                   <router-link
-                    :to="`/student/drives/${drive.id}`"
+                    :to="`/student/${drive.company_id}/drives/${drive.id}`"
                     class="btn btn-sm btn-outline-primary flex-grow-1">
                     <i class="bi bi-eye me-1"></i>View Details
                   </router-link>

@@ -36,7 +36,7 @@ class DevelopmentConfig(Config):
 
     # Flask-Mail Configuration
     MAIL_SERVER = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
-    MAIL_PORT = int(os.getenv('MAIL_PORT', 587))
+    MAIL_PORT = int(os.getenv('MAIL_PORT', 1025))
     MAIL_USE_TLS = os.getenv('MAIL_USE_TLS', 'true').lower() == 'true'
     MAIL_USE_SSL = os.getenv('MAIL_USE_SSL', 'false').lower() == 'true'
     MAIL_USERNAME = os.getenv('MAIL_USERNAME', 'your-email@gmail.com')

@@ -43,12 +43,12 @@
           </button>
           <div class="d-flex align-items-center gap-2">
             <span class="badge fs-6 px-3 py-2"
-                  :class="student.is_active
+                  :class="student.active
                     ? 'bg-success' : 'bg-danger'">
-              {{ student.is_active ? 'Active' : 'Blocked' }}
+              {{ student.active ? 'Active' : 'Blocked' }}
             </span>
             <button class="btn btn-sm"
-                    :class="student.is_active
+                    :class="student.active
                       ? 'btn-outline-danger'
                       : 'btn-outline-success'"
                     :disabled="toggling"
@@ -57,9 +57,9 @@
                     class="spinner-border spinner-border-sm me-1">
               </span>
               <i v-else class="bi me-1"
-                 :class="student.is_active
+                 :class="student.active
                    ? 'bi-slash-circle' : 'bi-check-circle'"></i>
-              {{ student.is_active
+              {{ student.active
                   ? 'Block Student' : 'Unblock Student' }}
             </button>
           </div>
@@ -255,6 +255,9 @@ const loadingApps = ref(false)
 const toggling    = ref(false)
 const error       = ref('')
 const toast       = reactive({ show: false, type: 'success', message: '' })
+// const student = computed(() =>
+//   store.students.find(s => s.user_id == route.params.id)
+// )
 
 // Read from store cache
 const student = computed(
@@ -302,18 +305,30 @@ async function loadApplications(force = false) {
 // store action → PUT /admin/users/:userId/active
 async function toggleActive() {
   if (!student.value) return
-  const newActive = !student.value.is_active
+
+  const newActive = !student.value.active   // ✅ use active
+
   if (!newActive &&
       !confirm('Block this student? They cannot log in.'))
     return
+
   toggling.value = true
   try {
-    await store.toggleStudentActive(
-      student.value.user_id, newActive
+    await store.adminstudentactions(
+      student.value.user_id,
+      { active: newActive }   // ✅ send correct field
     )
-    // store._patch already updates studentDetail.is_active
-    showToast('success',
-      `Student ${newActive ? 'unblocked' : 'blocked'}.`)
+
+    // No need to manually update if store patches it
+    // But if not:
+    // student.value.active = newActive
+    // student.value.active = newActive
+
+    showToast(
+      'success',
+      `Student ${newActive ? 'unblocked' : 'blocked'}.`
+    )
+
   } catch (e) {
     showToast('danger', e?.message ?? 'Action failed.')
   } finally {
