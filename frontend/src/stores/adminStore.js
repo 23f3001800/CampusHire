@@ -197,6 +197,19 @@ export const useAdminStore = defineStore('admin', {
       }
     },
 
+    async fetchresume(filename) {
+      try {
+        const res = await api.get(`/uploads/resumes/${filename}`, {
+          responseType: "blob"
+        })
+        return res
+      } catch (e) {
+        this.error = e.message
+        return null
+      }
+    },
+
+
     // ── GET /admin/students/:id/applications ───────────────────────────────
     async fetchStudentApplications(studentId, force = false) {
       const key = `studentApps_${studentId}`
@@ -300,6 +313,15 @@ export const useAdminStore = defineStore('admin', {
       delete this.ts.companies
       delete this.ts[`company_${companyId}`]
     },
+    async deleteCompany(companyId) {
+      await api.delete(`/company/${companyId}`)
+      this.companies = this.companies.filter(c => String(c.id) !== String(companyId))
+      delete this.companyDetail[companyId]
+      delete this.companyDrives[companyId]
+      delete this.ts.companies
+      this._decrementStat('approved_companies')
+    },
+
 
     // ═══════════════════════════════════════════════════════════════════════
     // PATCH /admin/students/:id
@@ -314,7 +336,7 @@ export const useAdminStore = defineStore('admin', {
       delete this.ts.students
       delete this.ts[`student_${studentId}`]
     },
-
+  
     // ═══════════════════════════════════════════════════════════════════════
     // PATCH /company/:companyId/drives/:driveId
     // approve drive       → { admin_approval_status: 'Approved' }

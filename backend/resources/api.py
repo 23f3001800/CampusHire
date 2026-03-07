@@ -18,8 +18,6 @@ from datetime import datetime, timezone
 import os
 import csv
 from io import StringIO
-from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import letter
 
 
 # ─── TTL Constants ────────────────────────────────────────────────────────────
@@ -705,13 +703,21 @@ class ResumeServeResource(Resource):
     @auth_required('token')
     @roles_accepted('student', 'company', 'admin')
     def get(self, filename):
-        upload_dir = current_app.config.get('UPLOAD_FOLDER', 'uploads/resumes')
+
+        base_dir = os.getcwd()
+        upload_dir = os.path.join(base_dir, "uploads", "resumes")
+
+        file_path = os.path.join(upload_dir, filename)
+
+        print("Looking for:", file_path)
+
         if '..' in filename or '/' in filename:
             return {'message': 'Invalid filename'}, 400
-        if not os.path.exists(os.path.join(upload_dir, filename)):
-            return {'message': 'File not found'}, 404
-        return send_from_directory(upload_dir, filename, as_attachment=True)
 
+        if not os.path.exists(file_path):
+            return {'message': 'File not found'}, 404
+
+        return send_from_directory(upload_dir, filename, as_attachment=False)
 
 # ─── Offer Letter Upload ───────────────────────────────────────────────────────
 # POST /api/upload-offer

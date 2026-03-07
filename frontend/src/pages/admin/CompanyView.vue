@@ -291,7 +291,10 @@
                      :class="company.active ? 'bi-slash-circle' : 'bi-check-circle'"></i>
                   {{ company.active ? 'Block Company' : 'Unblock Company' }}
                 </button>
-
+                <button class="btn btn-danger" @click="handleCompanyDelete">
+                  <i class="bi bi-trash me-1"></i>
+                  Delete company
+                </button>
               </div>
             </div>
 
@@ -438,6 +441,20 @@ export default {
       }
     }
 
+    async function handleCompanyDelete() {
+      if (!confirm('Are you sure you want to delete this company? This action cannot be undone.')) return
+      busy.value = true
+      try {
+        await store.deleteCompany(companyId)
+        showToast('success', 'Company deleted successfully.')
+        router.back()
+      } catch (e) {
+        showToast('danger', e?.message ?? 'Failed to delete company.')
+      } finally {
+        busy.value = false
+        router.back()
+      }
+    }
     // ── PATCH /company/:cid/drives/:did ────────────────────────────────────
     // approve drive → { admin_approval_status: 'Approved' }
     // reject  drive → { admin_approval_status: 'Rejected' }

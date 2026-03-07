@@ -93,7 +93,9 @@ company_fields = {
     'hr_contact':  fields.String,
     'department':  fields.String,
     'designation': fields.String,
+    "active":  _attr(lambda x: bool(x.user.active) if x.user else False), # ← same as bool(user.active) for now, can be separate in future
 
+    #  _attr(lambda x: bool(x.user.active) if x.user else False),  # ← same as active for now, can be separate in future
     # Approval
     'approval_status': fields.String,
     'verified_at':     fields.DateTime(dt_format='iso8601'),

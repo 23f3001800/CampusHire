@@ -4,6 +4,7 @@ from db import db
 from flask_security.utils import verify_password, hash_password
 from flask_security import auth_required, current_user
 import uuid
+from tasks import send_welcome_email
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/api/auth')
 
@@ -39,7 +40,8 @@ def login():
         return jsonify({'message': 'Invalid credentials'}), 401
 
     if not user.active:
-        return jsonify({'message': 'Account inactive. Awaiting admin approval.'}), 403
+        return jsonify({'message': 'Account is blocked.\n'
+        'Please reach out to admin for more details admin@campushire.in'}), 403
 
     if not user.roles:
         return jsonify({'message': 'No role assigned to this user'}), 403
@@ -72,7 +74,7 @@ def register():
         return jsonify({'message': 'Email already registered'}), 400
 
     datastore = current_app.datastore
-    active    = role != 'company'   # companies start inactive until approved
+    active    = True   # companies start inactive until approved
 
     try:
         user = datastore.create_user(
@@ -107,11 +109,14 @@ def register():
                 department=c.get('department'),
                 designation=c.get('designation'),
                 hr_contact=c.get('phone'),
+                website=c.get('webUrl'),
+                location=c.get('location'),
                 hr_email=email,
                 approval_status='Pending',
             ))
 
         db.session.commit()
+        send_welcome_email.delay(user.id)
 
     except Exception as e:
         db.session.rollback()

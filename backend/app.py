@@ -4,14 +4,11 @@ from config import DevelopmentConfig
 from models import db
 from db import security
 from resources import auth_bp, api_bp
-from flask_mail import Mail
+from extensions import mail
 from flask_security import SQLAlchemyUserDatastore
 from models import User, Role 
 from flask_cors import CORS
 
-
-# Initialize Flask-Mail globally
-mail = Mail()
 
 def create_app():
     app = Flask(__name__)

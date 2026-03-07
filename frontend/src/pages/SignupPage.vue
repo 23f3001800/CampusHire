@@ -32,7 +32,7 @@
         <div class="col-6">
           <label class="form-label fw-semibold small">Password</label>
           <input v-model="form.password" type="password" class="form-control panel-input"
-            placeholder="Min 6 chars" required />
+            placeholder="Min 8 chars" required />
         </div>
         <div class="col-6">
           <label class="form-label fw-semibold small">Confirm</label>
@@ -51,12 +51,13 @@
             <label class="form-label fw-semibold small">Branch</label>
             <select v-model="student.branch" class="form-select panel-input">
               <option value="">Select</option>
-              <option value="CSE">CSE</option>
-              <option value="ECE">ECE</option>
-              <option value="ME">ME</option>
-              <option value="Civil">Civil</option>
-              <option value="EE">EE</option>
-              <option value="IT">IT</option>
+              <option value="CSE">Computer Science</option>
+              <option value="DS">Data Science</option>
+              <option value="ECE">Electronics and Communication</option>
+              <option value="ME">Mechanical</option>
+              <option value="Civil">Civil Engineering</option>
+              <option value="EE">Electrical Engineering</option>
+              <option value="IT">Information Technology</option>
             </select>
           </div>
           <div class="col-6">
@@ -84,9 +85,19 @@
               placeholder="HR" />
           </div>
           <div class="col-6">
+            <label class="form-label fw-semibold small">web URL</label>
+            <input v-model="recruiter.webUrl" type="text" class="form-control panel-input"
+              placeholder="https://www.techsolutions.com" />
+          </div>
+          <div class="col-6">
             <label class="form-label fw-semibold small">Designation</label>
             <input v-model="recruiter.designation" type="text" class="form-control panel-input"
               placeholder="HR Manager" />
+          </div>
+          <div class="col-6">
+            <label class="form-label fw-semibold small">Location</label>
+            <input v-model="recruiter.location" type="text" class="form-control panel-input"
+              placeholder="Hyderabad, India" />
           </div>
           <div class="col-12">
             <label class="form-label fw-semibold small">Phone</label>
@@ -132,7 +143,7 @@ export default {
     role: 'student',
     form:      { name: '', email: '', password: '', confirmPassword: '' },
     student:   { rollNumber: '', branch: '', graduation: '', phone: '' },
-    recruiter: { companyName: '', department: '', designation: '', phone: '' },
+    recruiter: { companyName: '', department: '', designation: '', phone: '' , webUrl: '', location: '' },
     loading: false,
     error:   '',
   }),
@@ -142,8 +153,8 @@ export default {
       if (this.form.password !== this.form.confirmPassword) {
         this.error = 'Passwords do not match'; return
       }
-      if (this.form.password.length < 6) {
-        this.error = 'Password must be at least 6 characters'; return
+      if (this.form.password.length < 8) {
+        this.error = 'Password must be at least 8 characters'; return
       }
       this.loading = true
       try {

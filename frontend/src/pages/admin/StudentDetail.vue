@@ -85,13 +85,12 @@
                   {{ student.phone }}
                 </p>
               </div>
-              <a v-if="student.resume_link"
-                 :href="`${apiBase}/api/uploads/resumes/${student.resume_filename}`"
-                 target="_blank"
-                 class="btn btn-outline-primary btn-sm">
-                <i class="bi bi-file-earmark-pdf me-1"></i>
-                View Resume
-              </a>
+              <button v-if="student.resume_filename"
+                    @click="viewResume(student.resume_filename)"
+                    class="btn btn-outline-primary btn-sm">
+              <i class="bi bi-file-earmark-pdf me-1"></i>
+              View Resume
+            </button>
             </div>
 
             <!-- Info grid -->
@@ -299,6 +298,19 @@ async function loadApplications(force = false) {
     await store.fetchStudentApplications(studentId, force)
   } finally {
     loadingApps.value = false
+  }
+}
+
+async function viewResume(filename) {
+  try {
+    const blob = await store.fetchresume(filename)
+
+    if (blob) {
+      const url = URL.createObjectURL(blob)
+      window.open(url, "_blank")
+    }
+  } catch (e) {
+    showToast("danger", e?.message ?? "Failed to load resume.")
   }
 }
 

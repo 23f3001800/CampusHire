@@ -78,10 +78,9 @@ const NAV = {
   student: {
     primary: [
       { label: 'Dashboard',    icon: 'bi-speedometer2',      name: 'StudentDashboard', dynamic: true },
-      { label: 'Applications', icon: 'bi-file-earmark-text', name: 'StudentApps' },
+      { label: 'MyJourney', icon: 'bi-file-earmark-text', name: 'StudentJourney' },
       { label: 'Saved Drives', icon: 'bi-bookmark',          name: 'StudentSaved' },
       { label: 'My Profile',   icon: 'bi-person-circle',     name: 'StudentProfile' },
-      { label: 'My Placement', icon: 'bi-trophy', name: 'StudentPlacements'}
     ],
   },
   company: {
