@@ -6,15 +6,14 @@ import { useUserStore } from '@/stores/userStore'
 // const HomePage         = () => import('@/pages/HomePage.vue')
 // const AboutPage        = () => import('@/pages/AboutPage.vue')
 // const LoginPage        = () => import('@/pages/LoginPage.vue')
-const SignupPage       = () => import('@/pages/SignupPage.vue')
+// const SignupPage       = () => import('@/pages/SignupPage.vue')
 const NotFound         = () => import('@/pages/NotFound.vue')
 const Unauthorized     = () => import('@/pages/Unauthorized.vue')
 
 const StudentDashboard = () => import('@/pages/student/Dashboard.vue')
 const StudentProfile   = () => import('@/pages/student/Profile.vue')
-const StudentApps      = () => import('@/pages/student/Applications.vue')
 const StudentSaved     = () => import('@/pages/student/SavedDrives.vue')
-const StudentPlacements   = () => import('@/pages/student/PlacementHistory.vue')
+const StudentJourney = () => import('@/pages/student/Journey.vue')
 const StudentDriveDetail = () => import('@/pages/student/DriveDetail.vue')
 const StudentCompanyView  = () => import('@/pages/student/CompanyView.vue')
 
@@ -33,6 +32,7 @@ const AdminDriveDetail = () => import('@/pages/admin/DriveDetail.vue')
 const AdminStudentView  = () => import('@/pages/admin/StudentDetail.vue')
 const AdminCompanyView  = () => import('@/pages/admin/CompanyView.vue')
 
+
 // common routes for both student compny admin can be added here if needed
 
 const  viewdrive = () => import('@/pages/company/DriveDetail.vue')
@@ -50,9 +50,8 @@ const routes = [
   // Student
   { path: '/student/:id',                     name: 'StudentDashboard', component: StudentDashboard, meta: { auth: true} },
   { path: '/student/profile',                  name: 'StudentProfile',   component: StudentProfile,   meta: { auth: true, role: 'student' } },
-  { path: '/student/applications',             name: 'StudentApps',      component: StudentApps,      meta: { auth: true} },
   { path: '/student/saved-drives',             name: 'StudentSaved',     component: StudentSaved,     meta: { auth: true, role: 'student' } },
-  { path: '/student/placement-history',        name: 'StudentPlacements', component: StudentPlacements, meta: { auth: true, role: 'student' } },
+  { path: '/student/applications',            name: 'StudentJourney',    component: StudentJourney, meta: { auth: true, role: 'student' } },
   {path: '/student/:companyId/drives/:driveId', name: 'StudentDriveDetail', component: StudentDriveDetail, meta: { auth: true, role: 'student' } },
   {path: '/student/companies/:companyId', name: 'StudentCompanyView', component: StudentCompanyView, meta: { auth: true, role: 'student' } },
   // Company

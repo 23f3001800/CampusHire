@@ -5,7 +5,7 @@
       <div class="d-flex align-items-center
                   justify-content-between mb-4 flex-wrap gap-2">
         <div>
-          <router-link to="/admin"
+          <router-link to="/admin/{{ userStore.id }}"
                        class="btn btn-outline-secondary btn-sm mb-2">
             <i class="bi bi-arrow-left me-1"></i>Dashboard
           </router-link>

@@ -7,7 +7,7 @@ class CompanyService:
     UPDATABLE = [
         'company_name', 'industry', 'company_size',
         'location', 'website', 'description', 'logo_url',
-        'hr_email', 'hr_contact', 'department', 'designation',"approval_status"
+        'hr_email', 'hr_contact', 'department', 'designation',"approval_status", "active"
     ]
 
     # ── Company Profile ─────────────────────────────────────────────────────
@@ -22,18 +22,24 @@ class CompanyService:
 
     @staticmethod
     def update(company_id, data):
-        # Handles both PUT (full) and PATCH (partial)
-        # Only fields present in data are updated — safe for both cases
-        company = Company.query.get(company_id)
+        company = db.session.get(Company, company_id)
+
         if not company:
             return None
+
+        if "active" in data and company.user:
+            company.user.active = bool(data["active"])
+
         for field in CompanyService.UPDATABLE:
             if field in data:
                 setattr(company, field, data[field])
-        print(data)
+
         company.updated_at = datetime.utcnow()
+
         db.session.commit()
+
         return company
+    
 
     @staticmethod
     def delete(company_id):

@@ -12,7 +12,11 @@ import csv
 import os
 
 # Single app import — no create_app() inside tasks
-from app import app, mail
+from extensions import mail
+from flask import current_app as app
+
+
+
 
 
 # ─── Daily Reminder Task ──────────────────────────────────────────────────────
@@ -417,3 +421,134 @@ def _send_export_ready_email(entity, filename, role, entity_id):
         html=html,
     )
     mail.send(msg)
+
+
+# ─── Task 1/5 : Welcome Email (User Registration) ────────────────────────────
+
+@celery.task(bind=True, name='tasks.send_welcome_email', max_retries=3)
+def send_welcome_email(self, user_id):
+    """
+    Send a welcome email immediately after a user registers.
+    Detects role (student / company) and sends a tailored message.
+    Triggered via .delay(user_id) from the registration route.
+    """
+    with app.app_context():
+        try:
+            from models import User
+            user = User.query.get(user_id)
+            if not user:
+                raise ValueError(f'User {user_id} not found')
+
+            # Determine role and dashboard URL
+            role_names  = [r.name for r in user.roles]
+            is_student  = 'student'  in role_names
+            is_company  = 'company'  in role_names
+
+            if is_student:
+                role_label   = 'Student'
+                dashboard_url = f'http://localhost:5173/student/profile'
+                cta_text      = 'Complete Your Profile'
+                extra_section = """
+                <div style="background:#e8f4fd;padding:15px;
+                            border-radius:8px;margin:20px 0">
+                    <h3 style="margin:0 0 10px 0;color:#0d6efd">
+                        🚀 Get Started
+                    </h3>
+                    <ul style="margin:0;padding-left:20px;
+                               color:#495057;line-height:2">
+                        <li>Upload your resume</li>
+                        <li>Add your skills and bio</li>
+                        <li>Browse open placement drives</li>
+                        <li>Apply before deadlines close</li>
+                    </ul>
+                </div>"""
+
+            elif is_company:
+                role_label    = 'Company'
+                dashboard_url = f'http://localhost:5173/company/profile'
+                cta_text      = 'Set Up Your Company Profile'
+                extra_section = """
+                <div style="background:#e8f4fd;padding:15px;
+                            border-radius:8px;margin:20px 0">
+                    <h3 style="margin:0 0 10px 0;color:#0d6efd">
+                        🏢 Next Steps
+                    </h3>
+                    <ul style="margin:0;padding-left:20px;
+                               color:#495057;line-height:2">
+                        <li>Complete your company profile</li>
+                        <li>Wait for admin approval</li>
+                        <li>Post your first placement drive</li>
+                        <li>Start reviewing applicants</li>
+                    </ul>
+                </div>"""
+            else:
+                # Admin or unknown role — skip welcome email
+                return {'status': 'skipped', 'reason': 'non-student/company role'}
+
+            html = f"""
+            <html>
+            <body style="font-family:Arial,sans-serif;
+                         max-width:600px;margin:0 auto">
+
+                <div style="background:linear-gradient(135deg,#0d6efd,#6610f2);
+                            color:white;padding:30px;text-align:center;
+                            border-radius:8px 8px 0 0">
+                    <h1 style="margin:0">🎓 Welcome to CampusHire!</h1>
+                    <p style="margin:10px 0 0 0;font-size:1.1rem;opacity:.9">
+                        Your {role_label} account is ready
+                    </p>
+                </div>
+
+                <div style="padding:30px;background:white">
+                    <p style="font-size:1.1rem">
+                        Hi <strong>{user.name}</strong>,
+                    </p>
+                    <p style="color:#495057;line-height:1.7">
+                        Welcome aboard! Your account has been successfully
+                        created on <strong>CampusHire Placement Portal</strong>.
+                        We're excited to have you with us.
+                    </p>
+
+                    {extra_section}
+
+                    <div style="text-align:center;margin:30px 0">
+                        <a href="{dashboard_url}"
+                           style="background:#0d6efd;color:white;
+                                  padding:14px 35px;text-decoration:none;
+                                  border-radius:6px;display:inline-block;
+                                  font-size:1rem;font-weight:bold">
+                            {cta_text} →
+                        </a>
+                    </div>
+
+                    <hr style="border:none;border-top:1px solid #dee2e6;
+                               margin:30px 0"/>
+
+                    <p style="color:#6c757d;font-size:.85rem;
+                              text-align:center;margin:0">
+                        If you didn't create this account, please ignore
+                        this email or contact support.<br/>
+                        © CampusHire Placement Portal
+                    </p>
+                </div>
+
+            </body>
+            </html>"""
+
+            msg = Message(
+                f'👋 Welcome to CampusHire, {user.name}!',
+                recipients=[user.email],
+                html=html,
+            )
+            mail.send(msg)
+
+            return {
+                'status':  'success',
+                'user_id': user_id,
+                'role':    role_label,
+                'email':   user.email,
+            }
+
+        except Exception as exc:
+            # Retry up to 3 times with exponential backoff
+            raise self.retry(exc=exc, countdown=60 * (self.request.retries + 1))

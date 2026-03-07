@@ -46,7 +46,6 @@
                   @click="router.back()">
             <i class="bi bi-arrow-left me-1"></i>Back to Applicants
           </button>
-          <!-- Status pill in header -->
           <span v-if="application"
                 class="badge fs-6 px-3 py-2"
                 :class="statusBadgeClass(application.status)">
@@ -69,29 +68,24 @@
                     {{ initials(student.name) }}
                   </div>
                   <div class="flex-grow-1">
-                    <h4 class="fw-bold mb-1">
-                      {{ student.name || '—' }}
-                    </h4>
+                    <h4 class="fw-bold mb-1">{{ student.name || '—' }}</h4>
                     <p class="mb-1 text-muted small">
                       <i class="bi bi-envelope me-1"></i>
                       {{ student.email || '—' }}
                     </p>
                     <div class="d-flex gap-2 mt-2 flex-wrap">
                       <span v-if="student.branch"
-                            class="badge bg-primary
-                                   bg-opacity-10 text-primary">
+                            class="badge bg-primary bg-opacity-10 text-primary">
                         <i class="bi bi-diagram-3 me-1"></i>
                         {{ student.branch }}
                       </span>
                       <span v-if="student.cgpa"
-                            class="badge bg-success
-                                   bg-opacity-10 text-success">
+                            class="badge bg-success bg-opacity-10 text-success">
                         <i class="bi bi-award me-1"></i>
                         CGPA {{ student.cgpa }}
                       </span>
                       <span v-if="student.graduation_year"
-                            class="badge bg-info
-                                   bg-opacity-10 text-info">
+                            class="badge bg-info bg-opacity-10 text-info">
                         <i class="bi bi-calendar me-1"></i>
                         {{ student.graduation_year }}
                       </span>
@@ -101,24 +95,16 @@
 
                 <!-- Application timeline row -->
                 <div v-if="application"
-                     class="d-flex gap-3 flex-wrap
-                            border-top pt-3 mt-2">
-                  <div v-if="application.applied_date"
-                       class="timeline-item">
+                     class="d-flex gap-3 flex-wrap border-top pt-3 mt-2">
+                  <div v-if="application.applied_date" class="timeline-item">
                     <small class="text-muted d-block">Applied</small>
-                    <strong class="small">
-                      {{ formatDate(application.applied_date) }}
-                    </strong>
+                    <strong class="small">{{ formatDate(application.applied_date) }}</strong>
                   </div>
-                  <div v-if="application.reviewed_date"
-                       class="timeline-item">
+                  <div v-if="application.reviewed_date" class="timeline-item">
                     <small class="text-muted d-block">Reviewed</small>
-                    <strong class="small">
-                      {{ formatDate(application.reviewed_date) }}
-                    </strong>
+                    <strong class="small">{{ formatDate(application.reviewed_date) }}</strong>
                   </div>
-                  <div v-if="interview?.interview_date"
-                       class="timeline-item">
+                  <div v-if="interview?.interview_date" class="timeline-item">
                     <small class="text-muted d-block">Interview</small>
                     <strong class="small text-info">
                       {{ formatDate(interview.interview_date) }}
@@ -129,12 +115,8 @@
                 <div class="row g-3 mt-1">
                   <div class="col-md-6">
                     <div class="info-block">
-                      <small class="text-muted d-block">
-                        Roll Number
-                      </small>
-                      <strong>
-                        {{ student.roll_number || '—' }}
-                      </strong>
+                      <small class="text-muted d-block">Roll Number</small>
+                      <strong>{{ student.roll_number || '—' }}</strong>
                     </div>
                   </div>
                   <div class="col-md-6">
@@ -151,9 +133,7 @@
                   </div>
                   <div class="col-md-6">
                     <div class="info-block">
-                      <small class="text-muted d-block">
-                        10th / 12th %
-                      </small>
+                      <small class="text-muted d-block">10th / 12th %</small>
                       <strong>
                         {{ student.tenth_percentage ?? '—' }} /
                         {{ student.twelfth_percentage ?? '—' }}
@@ -177,17 +157,14 @@
                   <h6 class="section-label">Skills</h6>
                   <div class="d-flex flex-wrap gap-1 mb-4">
                     <span v-for="s in skillList" :key="s"
-                          class="badge bg-primary
-                                 bg-opacity-10 text-primary
-                                 py-2 px-3">
+                          class="badge bg-primary bg-opacity-10 text-primary py-2 px-3">
                       {{ s }}
                     </span>
                   </div>
                 </template>
                 <template v-if="student.bio">
                   <h6 class="section-label">Bio</h6>
-                  <p class="text-muted small mb-0"
-                     style="white-space:pre-wrap">
+                  <p class="text-muted small mb-0" style="white-space:pre-wrap">
                     {{ student.bio }}
                   </p>
                 </template>
@@ -205,13 +182,11 @@
                  class="card border-0 shadow-sm">
               <div class="card-header bg-white border-bottom py-3">
                 <h6 class="mb-0 fw-bold">
-                  <i class="bi bi-file-text me-2
-                             text-primary"></i>Cover Letter
+                  <i class="bi bi-file-text me-2 text-primary"></i>Cover Letter
                 </h6>
               </div>
               <div class="card-body">
-                <p class="text-muted small mb-0"
-                   style="white-space:pre-wrap">
+                <p class="text-muted small mb-0" style="white-space:pre-wrap">
                   {{ application.cover_letter }}
                 </p>
               </div>
@@ -226,16 +201,13 @@
             <div v-if="application" class="card border-0 shadow-sm">
               <div class="card-header bg-white border-bottom py-3">
                 <h6 class="mb-0 fw-bold">
-                  <i class="bi bi-lightning-charge me-2
-                             text-warning"></i>Actions
+                  <i class="bi bi-lightning-charge me-2 text-warning"></i>Actions
                 </h6>
               </div>
               <div class="card-body p-3">
 
-                <!-- Group: Forward actions -->
                 <p class="text-uppercase text-muted mb-2"
-                   style="font-size:.65rem;letter-spacing:.07em;
-                          font-weight:700">
+                   style="font-size:.65rem;letter-spacing:.07em;font-weight:700">
                   Move Forward
                 </p>
                 <div class="d-grid gap-2 mb-3">
@@ -246,21 +218,22 @@
                     :disabled="actionPending"
                     @click="doShortlist">
                     <span v-if="actionPending"
-                          class="spinner-border
-                                 spinner-border-sm me-1"></span>
+                          class="spinner-border spinner-border-sm me-1"></span>
                     <i v-else class="bi bi-person-check me-1"></i>
                     Shortlist Candidate
                   </button>
 
                   <button
-                    v-if="['Applied','Shortlisted']
-                            .includes(application.status)"
+                    v-if="['Applied','Shortlisted'].includes(application.status)"
                     class="btn btn-outline-primary btn-sm"
                     :disabled="actionPending"
                     @click="openInterviewModal">
                     <i class="bi bi-calendar-event me-1"></i>
-                    {{ interview ? 'Reschedule Interview'
-                                 : 'Schedule Interview' }}
+                    <!--
+                      FIX: Button label correctly reflects reschedule vs schedule
+                      based on live interview data from the store (populated on load).
+                    -->
+                    {{ interview ? 'Reschedule Interview' : 'Schedule Interview' }}
                   </button>
 
                   <button
@@ -273,8 +246,7 @@
                   </button>
 
                   <button
-                    v-if="!['Rejected','Selected']
-                             .includes(application.status)"
+                    v-if="!['Rejected','Selected'].includes(application.status)"
                     class="btn btn-outline-danger btn-sm"
                     :disabled="actionPending"
                     @click="openSelectionModal('Rejected')">
@@ -282,23 +254,18 @@
                     Reject Applicant
                   </button>
 
-                  <!-- ── Offer Letter buttons ──
-                       Show Generate only when letter has never been saved.
-                       Once saved (this session OR url exists from backend),
-                       show View + Edit & Regenerate instead. -->
+                  <!--
+                    FIX: hasOfferLetter computed checks BOTH the in-session flag
+                    AND the backend-persisted url so the buttons survive a refresh.
+                  -->
                   <template v-if="application.status === 'Selected'">
-
-                    <!-- Not yet generated -->
                     <button
-                      v-if="!offerLetterSaved &&
-                            !application?.placement?.offer_letter_url"
+                      v-if="!hasOfferLetter"
                       class="btn btn-warning btn-sm"
                       @click="openOfferModal('edit')">
                       <i class="bi bi-file-earmark-text me-1"></i>
                       Generate Offer Letter
                     </button>
-
-                    <!-- Already generated -->
                     <template v-else>
                       <button
                         class="btn btn-success btn-sm"
@@ -313,15 +280,12 @@
                         Edit &amp; Regenerate
                       </button>
                     </template>
-
                   </template>
 
                 </div>
 
-                <!-- Group: Utility -->
                 <p class="text-uppercase text-muted mb-2"
-                   style="font-size:.65rem;letter-spacing:.07em;
-                          font-weight:700">
+                   style="font-size:.65rem;letter-spacing:.07em;font-weight:700">
                   Utilities
                 </p>
                 <div class="d-grid gap-2 mb-3">
@@ -330,60 +294,41 @@
                     :disabled="actionPending"
                     @click="openNotesModal">
                     <i class="bi bi-chat-left-text me-1"></i>
-                    {{ application.notes ? 'Edit Notes'
-                                         : 'Add Internal Note' }}
+                    {{ application.notes ? 'Edit Notes' : 'Add Internal Note' }}
                   </button>
                 </div>
 
-                <!-- Group: Undo / Revert -->
                 <template v-if="['Shortlisted','Selected','Rejected']
                                   .includes(application.status)">
                   <p class="text-uppercase text-muted mb-2"
-                     style="font-size:.65rem;letter-spacing:.07em;
-                            font-weight:700">
+                     style="font-size:.65rem;letter-spacing:.07em;font-weight:700">
                     Revert
                   </p>
                   <div class="d-grid gap-2">
-
                     <button
                       v-if="application.status === 'Shortlisted'"
                       class="btn btn-sm btn-light border"
                       :disabled="actionPending"
-                      @click="doUndo(
-                        'Applied',
-                        'Move back to Applied? Shortlist will be undone.'
-                      )">
-                      <i class="bi bi-arrow-counterclockwise me-1
-                                 text-muted"></i>
+                      @click="doUndo('Applied','Move back to Applied? Shortlist will be undone.')">
+                      <i class="bi bi-arrow-counterclockwise me-1 text-muted"></i>
                       <span class="text-muted">Undo Shortlist</span>
                     </button>
-
                     <button
                       v-if="application.status === 'Selected'"
                       class="btn btn-sm btn-light border"
                       :disabled="actionPending"
-                      @click="doUndo(
-                        'Shortlisted',
-                        'Undo selection? Student returns to Shortlisted.'
-                      )">
-                      <i class="bi bi-arrow-counterclockwise me-1
-                                 text-muted"></i>
+                      @click="doUndo('Shortlisted','Undo selection? Student returns to Shortlisted.')">
+                      <i class="bi bi-arrow-counterclockwise me-1 text-muted"></i>
                       <span class="text-muted">Undo Selection</span>
                     </button>
-
                     <button
                       v-if="application.status === 'Rejected'"
                       class="btn btn-sm btn-light border"
                       :disabled="actionPending"
-                      @click="doUndo(
-                        'Applied',
-                        'Restore applicant back to Applied?'
-                      )">
-                      <i class="bi bi-arrow-counterclockwise me-1
-                                 text-muted"></i>
+                      @click="doUndo('Applied','Restore applicant back to Applied?')">
+                      <i class="bi bi-arrow-counterclockwise me-1 text-muted"></i>
                       <span class="text-muted">Restore to Applied</span>
                     </button>
-
                   </div>
                 </template>
 
@@ -392,113 +337,74 @@
 
             <!-- ── Interview Details card ── -->
             <div v-if="interview" class="card border-0 shadow-sm
-                                         border-start border-info
-                                         border-3">
+                                         border-start border-info border-3">
               <div class="card-header bg-white border-bottom py-3
-                          d-flex align-items-center
-                          justify-content-between">
+                          d-flex align-items-center justify-content-between">
                 <h6 class="mb-0 fw-bold">
-                  <i class="bi bi-calendar-check me-2
-                             text-info"></i>Scheduled Interview
+                  <i class="bi bi-calendar-check me-2 text-info"></i>Scheduled Interview
                 </h6>
                 <span class="badge bg-info text-dark">
                   {{ interview.interview_type }}
                 </span>
               </div>
               <div class="card-body p-3">
-                <ul class="list-unstyled mb-0 d-flex
-                           flex-column gap-2">
-
+                <ul class="list-unstyled mb-0 d-flex flex-column gap-2">
                   <li class="d-flex align-items-start gap-2">
-                    <i class="bi bi-camera-video text-muted
-                               mt-1 flex-shrink-0"></i>
+                    <i class="bi bi-camera-video text-muted mt-1 flex-shrink-0"></i>
                     <div>
                       <small class="text-muted d-block">Mode</small>
-                      <strong class="small">
-                        {{ interview.interview_mode }}
-                      </strong>
+                      <strong class="small">{{ interview.interview_mode }}</strong>
                     </div>
                   </li>
-
                   <li class="d-flex align-items-start gap-2">
-                    <i class="bi bi-clock text-muted
-                               mt-1 flex-shrink-0"></i>
+                    <i class="bi bi-clock text-muted mt-1 flex-shrink-0"></i>
                     <div>
-                      <small class="text-muted d-block">
-                        Date & Time
-                      </small>
+                      <small class="text-muted d-block">Date & Time</small>
                       <strong class="small">
-                        {{
-                          formatDateTime(interview.interview_date)
-                        }}
+                        {{ formatDateTime(interview.interview_date) }}
                       </strong>
                     </div>
                   </li>
-
                   <li v-if="interview.interview_link"
                       class="d-flex align-items-start gap-2">
-                    <i class="bi bi-link-45deg text-muted
-                               mt-1 flex-shrink-0"></i>
+                    <i class="bi bi-link-45deg text-muted mt-1 flex-shrink-0"></i>
                     <div>
                       <small class="text-muted d-block">
-                        {{
-                          interview.interview_mode === 'Online'
-                            ? 'Meeting Link'
-                            : 'Venue'
-                        }}
+                        {{ interview.interview_mode === 'Online' ? 'Meeting Link' : 'Venue' }}
                       </small>
                       <a v-if="interview.interview_mode === 'Online'"
                          :href="interview.interview_link"
                          target="_blank"
-                         class="small text-primary
-                                text-break">
+                         class="small text-primary text-break">
                         {{ interview.interview_link }}
                       </a>
-                      <strong v-else class="small">
-                        {{ interview.interview_link }}
-                      </strong>
+                      <strong v-else class="small">{{ interview.interview_link }}</strong>
                     </div>
                   </li>
-
                   <li v-if="interview.interviewer"
                       class="d-flex align-items-start gap-2">
-                    <i class="bi bi-person-badge text-muted
-                               mt-1 flex-shrink-0"></i>
+                    <i class="bi bi-person-badge text-muted mt-1 flex-shrink-0"></i>
                     <div>
-                      <small class="text-muted d-block">
-                        Interviewer(s)
-                      </small>
-                      <strong class="small">
-                        {{ interview.interviewer }}
-                      </strong>
+                      <small class="text-muted d-block">Interviewer(s)</small>
+                      <strong class="small">{{ interview.interviewer }}</strong>
                     </div>
                   </li>
-
                   <li v-if="interview.instructions"
                       class="d-flex align-items-start gap-2">
-                    <i class="bi bi-info-circle text-muted
-                               mt-1 flex-shrink-0"></i>
+                    <i class="bi bi-info-circle text-muted mt-1 flex-shrink-0"></i>
                     <div>
-                      <small class="text-muted d-block">
-                        Instructions
-                      </small>
-                      <span class="small text-muted">
-                        {{ interview.instructions }}
-                      </span>
+                      <small class="text-muted d-block">Instructions</small>
+                      <span class="small text-muted">{{ interview.instructions }}</span>
                     </div>
                   </li>
-
                 </ul>
-
-                <!-- Revoke interview -->
                 <div class="mt-3 pt-3 border-top">
                   <button
                     class="btn btn-sm btn-outline-danger w-100"
                     :disabled="actionPending"
                     @click="doRevokeInterview">
                     <span v-if="actionPending"
-                          class="spinner-border
-                                 spinner-border-sm me-1"></span>
+                          class="spinner-border spinner-border-sm me-1"></span>
                     <i v-else class="bi bi-calendar-x me-1"></i>
                     Revoke Interview
                   </button>
@@ -510,8 +416,7 @@
             <div class="card border-0 shadow-sm">
               <div class="card-header bg-white border-bottom py-3">
                 <h6 class="mb-0 fw-bold">
-                  <i class="bi bi-file-earmark-pdf me-2
-                             text-danger"></i>Resume
+                  <i class="bi bi-file-earmark-pdf me-2 text-danger"></i>Resume
                 </h6>
               </div>
               <div class="card-body d-grid gap-2">
@@ -532,49 +437,40 @@
             <div class="card border-0 shadow-sm">
               <div class="card-header bg-white border-bottom py-3">
                 <h6 class="mb-0 fw-bold">
-                  <i class="bi bi-link-45deg me-2
-                             text-info"></i>Links
+                  <i class="bi bi-link-45deg me-2 text-info"></i>Links
                 </h6>
               </div>
               <div class="card-body">
                 <div class="d-flex flex-column gap-2">
                   <a v-if="student.linkedin_url"
-                     :href="student.linkedin_url"
-                     target="_blank"
+                     :href="student.linkedin_url" target="_blank"
                      class="btn btn-outline-primary btn-sm">
                     <i class="bi bi-linkedin me-1"></i>LinkedIn
                   </a>
                   <a v-if="student.github_url"
-                     :href="student.github_url"
-                     target="_blank"
+                     :href="student.github_url" target="_blank"
                      class="btn btn-outline-dark btn-sm">
                     <i class="bi bi-github me-1"></i>GitHub
                   </a>
                   <a v-if="student.portfolio_url"
-                     :href="student.portfolio_url"
-                     target="_blank"
+                     :href="student.portfolio_url" target="_blank"
                      class="btn btn-outline-secondary btn-sm">
                     <i class="bi bi-globe2 me-1"></i>Portfolio
                   </a>
                   <p v-if="!student.linkedin_url &&
                             !student.github_url &&
                             !student.portfolio_url"
-                     class="text-muted small mb-0">
-                    No links added.
-                  </p>
+                     class="text-muted small mb-0">No links added.</p>
                 </div>
               </div>
             </div>
 
             <!-- Recruiter Notes (read-only preview) -->
-            <div v-if="application?.notes"
-                 class="card border-0 shadow-sm">
+            <div v-if="application?.notes" class="card border-0 shadow-sm">
               <div class="card-header bg-white border-bottom py-3
-                          d-flex align-items-center
-                          justify-content-between">
+                          d-flex align-items-center justify-content-between">
                 <h6 class="mb-0 fw-bold">
-                  <i class="bi bi-chat-left-text me-2
-                             text-secondary"></i>
+                  <i class="bi bi-chat-left-text me-2 text-secondary"></i>
                   Recruiter Notes
                 </h6>
                 <button class="btn btn-outline-secondary btn-sm"
@@ -583,8 +479,7 @@
                 </button>
               </div>
               <div class="card-body">
-                <p class="text-muted small mb-0"
-                   style="white-space:pre-wrap">
+                <p class="text-muted small mb-0" style="white-space:pre-wrap">
                   {{ application.notes }}
                 </p>
               </div>
@@ -605,17 +500,36 @@
         <div class="modal-header-custom">
           <h6 class="fw-bold mb-0">
             <i class="bi bi-calendar-event me-2"></i>
-            Schedule Interview — {{ student?.name }}
+            <!--
+              FIX: Header title reflects reschedule vs new schedule.
+            -->
+            {{ interview ? 'Reschedule Interview' : 'Schedule Interview' }}
+            — {{ student?.name }}
           </h6>
           <button class="btn-close btn-close-white"
                   @click="interviewModal.show = false"></button>
         </div>
         <div class="modal-body-custom">
+
+          <!--
+            FIX: Show a subtle info banner when rescheduling so the recruiter
+            knows they are editing an existing interview, not creating one.
+          -->
+          <div v-if="interview"
+               class="alert alert-info d-flex align-items-center
+                      gap-2 py-2 px-3 mb-3 small">
+            <i class="bi bi-info-circle-fill flex-shrink-0"></i>
+            <span>
+              Editing existing interview scheduled for
+              <strong>{{ formatDateTime(interview.interview_date) }}</strong>.
+              Saving will update the existing record.
+            </span>
+          </div>
+
           <div class="row g-3">
             <div class="col-md-6">
               <label class="form-label fw-semibold small">
-                Interview Type
-                <span class="text-danger">*</span>
+                Interview Type <span class="text-danger">*</span>
               </label>
               <select class="form-select form-select-sm"
                       v-model="interviewForm.interview_type">
@@ -639,23 +553,23 @@
               <label class="form-label fw-semibold small">
                 Date & Time <span class="text-danger">*</span>
               </label>
+              <!--
+                FIX: Input is pre-filled from the existing interview date
+                (converted from ISO → datetime-local format) when rescheduling.
+              -->
               <input class="form-control form-control-sm"
                      type="datetime-local"
                      v-model="interviewForm.interview_date" />
             </div>
             <div class="col-12">
               <label class="form-label fw-semibold small">
-                {{
-                  interviewForm.interview_mode === 'Online'
-                    ? 'Meeting Link / URL'
-                    : 'Venue / Location'
-                }}
+                {{ interviewForm.interview_mode === 'Online'
+                    ? 'Meeting Link / URL' : 'Venue / Location' }}
               </label>
               <input class="form-control form-control-sm"
                      v-model="interviewForm.interview_link"
                      :placeholder="interviewForm.interview_mode === 'Online'
-                       ? 'https://meet.google.com/…'
-                       : 'Room 101, Block A'" />
+                       ? 'https://meet.google.com/…' : 'Room 101, Block A'" />
             </div>
             <div class="col-12">
               <label class="form-label fw-semibold small">
@@ -686,10 +600,12 @@
                   :disabled="interviewModal.saving"
                   @click="submitInterview">
             <span v-if="interviewModal.saving"
-                  class="spinner-border
-                         spinner-border-sm me-1"></span>
+                  class="spinner-border spinner-border-sm me-1"></span>
             <i v-else class="bi bi-calendar-check me-1"></i>
-            Schedule
+            <!--
+              FIX: Button label also reflects the actual action being taken.
+            -->
+            {{ interview ? 'Update Interview' : 'Schedule' }}
           </button>
         </div>
       </div>
@@ -703,15 +619,13 @@
          @click.self="selectionModal.show = false">
       <div class="modal-card shadow-lg">
         <div class="modal-header-custom"
-             :class="selectionModal.status === 'Selected'
-               ? 'bg-success' : 'bg-danger'">
+             :class="selectionModal.status === 'Selected' ? 'bg-success' : 'bg-danger'">
           <h6 class="fw-bold mb-0 text-white">
             <i class="bi me-2"
                :class="selectionModal.status === 'Selected'
                  ? 'bi-check-circle' : 'bi-x-circle'"></i>
             {{ selectionModal.status === 'Selected'
-                ? 'Finalise Selection'
-                : 'Reject Applicant' }}
+                ? 'Finalise Selection' : 'Reject Applicant' }}
             — {{ student?.name }}
           </h6>
           <button class="btn-close btn-close-white"
@@ -721,18 +635,14 @@
           <div class="row g-3">
             <template v-if="selectionModal.status === 'Selected'">
               <div class="col-md-6">
-                <label class="form-label fw-semibold small">
-                  Offered Salary (INR)
-                </label>
+                <label class="form-label fw-semibold small">Offered Salary (INR)</label>
                 <input class="form-control form-control-sm"
                        type="number" min="0"
                        v-model.number="selectionForm.salary"
                        placeholder="e.g. 800000" />
               </div>
               <div class="col-md-6">
-                <label class="form-label fw-semibold small">
-                  Joining Date
-                </label>
+                <label class="form-label fw-semibold small">Joining Date</label>
                 <input class="form-control form-control-sm"
                        type="date"
                        v-model="selectionForm.joining_date" />
@@ -740,15 +650,11 @@
             </template>
             <div class="col-12">
               <label class="form-label fw-semibold small">
-                {{
-                  selectionModal.status === 'Rejected'
-                    ? 'Rejection Feedback (optional)'
-                    : 'Internal Notes (optional)'
-                }}
+                {{ selectionModal.status === 'Rejected'
+                    ? 'Rejection Feedback (optional)' : 'Internal Notes (optional)' }}
               </label>
               <textarea class="form-control form-control-sm"
-                        v-model="selectionForm.notes"
-                        rows="3"
+                        v-model="selectionForm.notes" rows="3"
                         :placeholder="selectionModal.status === 'Rejected'
                           ? 'e.g. Did not meet technical requirements…'
                           : 'Internal notes…'">
@@ -758,17 +664,13 @@
         </div>
         <div class="modal-footer-custom">
           <button class="btn btn-secondary btn-sm"
-                  @click="selectionModal.show = false">
-            Cancel
-          </button>
+                  @click="selectionModal.show = false">Cancel</button>
           <button class="btn btn-sm px-4"
-                  :class="selectionModal.status === 'Selected'
-                    ? 'btn-success' : 'btn-danger'"
+                  :class="selectionModal.status === 'Selected' ? 'btn-success' : 'btn-danger'"
                   :disabled="selectionModal.saving"
                   @click="submitSelection">
             <span v-if="selectionModal.saving"
-                  class="spinner-border
-                         spinner-border-sm me-1"></span>
+                  class="spinner-border spinner-border-sm me-1"></span>
             <i v-else class="bi me-1"
                :class="selectionModal.status === 'Selected'
                  ? 'bi-check-circle' : 'bi-x-circle'"></i>
@@ -798,22 +700,17 @@
             Notes are internal and not visible to the student.
           </p>
           <textarea class="form-control"
-                    v-model="notesModal.text"
-                    rows="5"
-                    placeholder="Internal recruiter notes…">
-          </textarea>
+                    v-model="notesModal.text" rows="5"
+                    placeholder="Internal recruiter notes…"></textarea>
         </div>
         <div class="modal-footer-custom">
           <button class="btn btn-secondary btn-sm"
-                  @click="notesModal.show = false">
-            Cancel
-          </button>
+                  @click="notesModal.show = false">Cancel</button>
           <button class="btn btn-primary btn-sm px-4"
                   :disabled="notesModal.saving"
                   @click="saveNotes">
             <span v-if="notesModal.saving"
-                  class="spinner-border
-                         spinner-border-sm me-1"></span>
+                  class="spinner-border spinner-border-sm me-1"></span>
             <i v-else class="bi bi-floppy me-1"></i>
             Save Notes
           </button>
@@ -829,27 +726,22 @@
          @click.self="offerModal.show = false">
       <div class="modal-card shadow-lg" style="max-width:700px">
 
-        <div class="modal-header-custom"
-             style="background:#198754">
+        <div class="modal-header-custom" style="background:#198754">
           <h6 class="fw-bold mb-0 text-white">
             <i class="bi bi-file-earmark-text me-2"></i>
             Offer Letter —
-            {{ offerModal.step === 1
-                ? 'Fill Details'
-                : 'Preview & Save' }}
+            {{ offerModal.step === 1 ? 'Fill Details' : 'Preview & Save' }}
           </h6>
           <div class="d-flex align-items-center gap-2">
             <span class="badge"
                   :class="offerModal.step === 1
-                    ? 'bg-white text-success'
-                    : 'bg-success-subtle text-white'">
+                    ? 'bg-white text-success' : 'bg-success-subtle text-white'">
               1 Details
             </span>
             <i class="bi bi-chevron-right text-white-50"></i>
             <span class="badge"
                   :class="offerModal.step === 2
-                    ? 'bg-white text-success'
-                    : 'bg-success-subtle text-white'">
+                    ? 'bg-white text-success' : 'bg-success-subtle text-white'">
               2 Preview
             </span>
             <button class="btn-close btn-close-white ms-2"
@@ -862,64 +754,40 @@
           <!-- Step 1 -->
           <div v-if="offerModal.step === 1" class="row g-3">
             <div class="col-md-6">
-              <label class="form-label fw-semibold small">
-                Candidate Name
-              </label>
-              <input class="form-control form-control-sm"
-                     v-model="offerFields.studentName" />
+              <label class="form-label fw-semibold small">Candidate Name</label>
+              <input class="form-control form-control-sm" v-model="offerFields.studentName" />
             </div>
             <div class="col-md-6">
-              <label class="form-label fw-semibold small">
-                Role / Position
-              </label>
-              <input class="form-control form-control-sm"
-                     v-model="offerFields.role" />
+              <label class="form-label fw-semibold small">Role / Position</label>
+              <input class="form-control form-control-sm" v-model="offerFields.role" />
             </div>
             <div class="col-md-6">
-              <label class="form-label fw-semibold small">
-                Company Name
-              </label>
-              <input class="form-control form-control-sm"
-                     v-model="offerFields.companyName" />
+              <label class="form-label fw-semibold small">Company Name</label>
+              <input class="form-control form-control-sm" v-model="offerFields.companyName" />
             </div>
             <div class="col-md-6">
-              <label class="form-label fw-semibold small">
-                Letter Date
-              </label>
-              <input class="form-control form-control-sm"
-                     type="date"
+              <label class="form-label fw-semibold small">Letter Date</label>
+              <input class="form-control form-control-sm" type="date"
                      v-model="offerFields.letterDate" />
             </div>
             <div class="col-md-6">
-              <label class="form-label fw-semibold small">
-                Offered CTC (INR)
-              </label>
-              <input class="form-control form-control-sm"
-                     type="number" min="0"
+              <label class="form-label fw-semibold small">Offered CTC (INR)</label>
+              <input class="form-control form-control-sm" type="number" min="0"
                      v-model.number="offerFields.salary" />
             </div>
             <div class="col-md-6">
-              <label class="form-label fw-semibold small">
-                Joining Date
-              </label>
-              <input class="form-control form-control-sm"
-                     type="date"
+              <label class="form-label fw-semibold small">Joining Date</label>
+              <input class="form-control form-control-sm" type="date"
                      v-model="offerFields.joiningDate" />
             </div>
             <div class="col-md-6">
-              <label class="form-label fw-semibold small">
-                Signatory Name
-              </label>
-              <input class="form-control form-control-sm"
-                     v-model="offerFields.hrName"
+              <label class="form-label fw-semibold small">Signatory Name</label>
+              <input class="form-control form-control-sm" v-model="offerFields.hrName"
                      placeholder="e.g. Priya Sharma" />
             </div>
             <div class="col-md-6">
-              <label class="form-label fw-semibold small">
-                Signatory Designation
-              </label>
-              <input class="form-control form-control-sm"
-                     v-model="offerFields.hrDesignation"
+              <label class="form-label fw-semibold small">Signatory Designation</label>
+              <input class="form-control form-control-sm" v-model="offerFields.hrDesignation"
                      placeholder="e.g. HR Manager" />
             </div>
             <div class="col-12">
@@ -927,125 +795,82 @@
                 Additional Terms / Clauses
               </label>
               <textarea class="form-control form-control-sm"
-                        v-model="offerFields.extraClauses"
-                        rows="3"
+                        v-model="offerFields.extraClauses" rows="3"
                         placeholder="e.g. Offer subject to background verification…">
               </textarea>
             </div>
           </div>
 
           <!-- Step 2 — Print preview -->
-          <div v-else
-               id="offer-print-area"
+          <div v-else id="offer-print-area"
                class="offer-preview border rounded p-4">
             <div class="text-center mb-4">
-              <h4 class="fw-bold mb-0 text-uppercase
-                          letter-spacing-1">
+              <h4 class="fw-bold mb-0 text-uppercase letter-spacing-1">
                 {{ offerFields.companyName }}
               </h4>
-              <p class="text-muted small mb-0">
-                Offer of Employment
-              </p>
+              <p class="text-muted small mb-0">Offer of Employment</p>
               <hr class="my-3" />
             </div>
-
-            <div class="d-flex justify-content-between
-                        flex-wrap mb-4">
+            <div class="d-flex justify-content-between flex-wrap mb-4">
               <div>
                 <strong>To,</strong><br />
                 {{ offerFields.studentName }}<br />
-                <span class="text-muted small">
-                  {{ student?.email }}
-                </span>
+                <span class="text-muted small">{{ student?.email }}</span>
               </div>
               <div class="text-end">
                 <small class="text-muted d-block">Date</small>
-                <strong>
-                  {{ formatDate(offerFields.letterDate) }}
-                </strong>
+                <strong>{{ formatDate(offerFields.letterDate) }}</strong>
               </div>
             </div>
-
             <p class="mb-4">
-              <strong>
-                Sub: Offer of Employment —
-                {{ offerFields.role }}
-              </strong>
+              <strong>Sub: Offer of Employment — {{ offerFields.role }}</strong>
             </p>
-
             <p>Dear <strong>{{ offerFields.studentName }}</strong>,</p>
-
             <p>
               We are delighted to offer you the position of
               <strong>{{ offerFields.role }}</strong> at
               <strong>{{ offerFields.companyName }}</strong>.
-              After careful evaluation of your qualifications
-              and interview performance, we are confident that
-              you will be a valuable addition to our team.
+              After careful evaluation of your qualifications and interview
+              performance, we are confident that you will be a valuable
+              addition to our team.
             </p>
-
-            <table class="table table-bordered table-sm
-                           my-4 small">
+            <table class="table table-bordered table-sm my-4 small">
               <tbody>
                 <tr>
-                  <th class="bg-light" style="width:40%">
-                    Position
-                  </th>
+                  <th class="bg-light" style="width:40%">Position</th>
                   <td>{{ offerFields.role }}</td>
                 </tr>
                 <tr>
                   <th class="bg-light">Annual CTC</th>
-                  <td>
-                    ₹ {{
-                      Number(offerFields.salary || 0)
-                        .toLocaleString('en-IN')
-                    }}
-                  </td>
+                  <td>₹ {{ Number(offerFields.salary || 0).toLocaleString('en-IN') }}</td>
                 </tr>
                 <tr>
                   <th class="bg-light">Joining Date</th>
-                  <td>
-                    {{
-                      formatDate(offerFields.joiningDate) || '—'
-                    }}
-                  </td>
+                  <td>{{ formatDate(offerFields.joiningDate) || '—' }}</td>
                 </tr>
               </tbody>
             </table>
-
             <p>
-              Kindly confirm your acceptance by signing and
-              returning a copy of this letter within
-              <strong>7 working days</strong> from the date of
-              this offer. Failure to do so will render this
-              offer null and void.
+              Kindly confirm your acceptance by signing and returning a copy of
+              this letter within <strong>7 working days</strong> from the date
+              of this offer. Failure to do so will render this offer null and void.
             </p>
-
             <template v-if="offerFields.extraClauses">
-              <p class="fw-semibold mb-1">
-                Additional Terms &amp; Conditions:
-              </p>
-              <p class="text-muted small"
-                 style="white-space:pre-wrap">
+              <p class="fw-semibold mb-1">Additional Terms &amp; Conditions:</p>
+              <p class="text-muted small" style="white-space:pre-wrap">
                 {{ offerFields.extraClauses }}
               </p>
             </template>
-
             <div class="mt-5">
               <p class="mb-0">Yours sincerely,</p>
               <p class="mb-0 mt-4">
-                <strong>
-                  {{ offerFields.hrName || 'HR Team' }}
-                </strong><br />
+                <strong>{{ offerFields.hrName || 'HR Team' }}</strong><br />
                 {{ offerFields.hrDesignation || 'HR Department' }}<br />
                 <strong>{{ offerFields.companyName }}</strong>
               </p>
             </div>
-
-            <div class="mt-5 pt-3 border-top text-center
-                        small text-muted">
-              This is a system-generated offer letter.
-              {{ offerFields.companyName }}
+            <div class="mt-5 pt-3 border-top text-center small text-muted">
+              This is a system-generated offer letter. {{ offerFields.companyName }}
             </div>
           </div>
 
@@ -1053,26 +878,18 @@
 
         <div class="modal-footer-custom">
           <button class="btn btn-secondary btn-sm"
-                  @click="offerModal.show = false">
-            Close
-          </button>
-
-          <!-- Step 2: back to edit -->
+                  @click="offerModal.show = false">Close</button>
           <button v-if="offerModal.step === 2"
                   class="btn btn-outline-secondary btn-sm"
                   :disabled="offerModal_saving"
                   @click="offerModal.step = 1">
             <i class="bi bi-pencil me-1"></i>Edit
           </button>
-
-          <!-- Step 1: go to preview -->
           <button v-if="offerModal.step === 1"
                   class="btn btn-success btn-sm px-4"
                   @click="offerModal.step = 2">
             <i class="bi bi-eye me-1"></i>Preview Letter
           </button>
-
-          <!-- Step 2: Save only — captures HTML → PDF Blob → uploads to backend -->
           <button v-if="offerModal.step === 2"
                   class="btn btn-primary btn-sm px-4"
                   :disabled="offerModal_saving"
@@ -1102,55 +919,65 @@ const store     = useCompanyStore()
 const userStore = useUserStore()
 
 // ── Route params ──────────────────────────────────────────────
-const studentId = route.params.studentId
-
-const driveId = route.query.driveId
-  ? parseInt(route.query.driveId) : null
-const applicationId = route.query.applicationId
-  ? parseInt(route.query.applicationId) : null
-
-const cid = computed(() => userStore.companyId)
+const studentId     = route.params.studentId
+const driveId       = route.query.driveId       ? parseInt(route.query.driveId)       : null
+const applicationId = route.query.applicationId ? parseInt(route.query.applicationId) : null
+const cid           = computed(() => userStore.companyId)
 
 // ── State ─────────────────────────────────────────────────────
-const student           = ref(null)
-const loading           = ref(true)
-const error             = ref('')
-const actionPending     = ref(false)
-const offerLetterSaved  = ref(false)   // flips true after successful upload this session
+const student            = ref(null)
+const loading            = ref(true)
+const error              = ref('')
+const actionPending      = ref(false)
+const resumeDownloadBusy = ref(false)
+
+// ── Offer-letter persistence (localStorage) ───────────────────
+// We cannot rely on the backend returning placement.offer_letter_url
+// inside the applicants list response. Instead we persist a flag in
+// localStorage keyed to the applicationId so the "View / Edit" buttons
+// survive a hard refresh without any backend change.
+const OFFER_KEY = `offer_letter_saved_${applicationId}`
+
+// Initialise from localStorage immediately — before any fetch completes —
+// so the correct buttons are rendered on first paint after a reload.
+const offerLetterSaved = ref(!!localStorage.getItem(OFFER_KEY))
 
 const toast = reactive({ show: false, type: 'success', message: '' })
 
 // ── Modal state ───────────────────────────────────────────────
 const interviewModal = reactive({ show: false, saving: false })
 const interviewForm  = reactive({
-  interview_type: 'Technical', interview_mode: 'Online',
-  interview_date: '', interview_link: '',
-  interviewer: '', instructions: '',
+  interview_type: 'Technical',
+  interview_mode: 'Online',
+  interview_date: '',
+  interview_link: '',
+  interviewer:    '',
+  instructions:   '',
 })
 
-const selectionModal = reactive({
-  show: false, saving: false, status: 'Selected',
-})
-const selectionForm = reactive({
-  salary: null, joining_date: '', notes: '',
-})
+const selectionModal = reactive({ show: false, saving: false, status: 'Selected' })
+const selectionForm  = reactive({ salary: null, joining_date: '', notes: '' })
 
 const notesModal = reactive({ show: false, saving: false, text: '' })
 
-const offerModal      = reactive({ show: false, step: 1 })
+const offerModal        = reactive({ show: false, step: 1 })
 const offerModal_saving = ref(false)
-const offerFields     = reactive({
-  studentName: '', role: '', companyName: '',
-  letterDate:  new Date().toISOString().slice(0, 10),
-  salary: null, joiningDate: '',
-  hrName: '', hrDesignation: 'HR Manager', extraClauses: '',
+const offerFields       = reactive({
+  studentName:   '',
+  role:          '',
+  companyName:   '',
+  letterDate:    new Date().toISOString().slice(0, 10),
+  salary:        null,
+  joiningDate:   '',
+  hrName:        '',
+  hrDesignation: 'HR Manager',
+  extraClauses:  '',
 })
 
 // ── Computed ──────────────────────────────────────────────────
 const application = computed(() => {
   if (!driveId || !applicationId) return null
-  return (store.applicants[driveId] || [])
-    .find(a => a.id === applicationId) || null
+  return (store.applicants[driveId] || []).find(a => a.id === applicationId) || null
 })
 
 const interview = computed(() =>
@@ -1158,8 +985,22 @@ const interview = computed(() =>
 )
 
 const skillList = computed(() =>
-  (student.value?.skills || '')
-    .split(',').map(s => s.trim()).filter(Boolean)
+  (student.value?.skills || '').split(',').map(s => s.trim()).filter(Boolean)
+)
+
+/**
+ * FIX — Offer letter persistence across refresh.
+ *
+ * Three sources are checked in order:
+ *   1. offerLetterSaved ref  — initialised from localStorage on mount,
+ *                              so it is already true on reload if ever saved.
+ *   2. offer_letter_url      — truthy if the backend happens to return the
+ *                              placement object inside the applicants response.
+ *
+ * No backend change is required for this to work.
+ */
+const hasOfferLetter = computed(() =>
+  offerLetterSaved.value || !!application.value?.placement?.offer_letter_url
 )
 
 // ── Load ──────────────────────────────────────────────────────
@@ -1185,9 +1026,7 @@ async function loadStudent() {
 async function doShortlist() {
   actionPending.value = true
   try {
-    await store.updateApplicationStatus(
-      cid.value, driveId, applicationId, 'Shortlisted'
-    )
+    await store.updateApplicationStatus(cid.value, driveId, applicationId, 'Shortlisted')
     showToast('success', `${student.value?.name} shortlisted.`)
   } catch (e) {
     showToast('danger', e?.message ?? 'Action failed.')
@@ -1201,9 +1040,7 @@ async function doUndo(targetStatus, confirmMsg) {
   if (!confirm(confirmMsg)) return
   actionPending.value = true
   try {
-    await store.updateApplicationStatus(
-      cid.value, driveId, applicationId, targetStatus
-    )
+    await store.updateApplicationStatus(cid.value, driveId, applicationId, targetStatus)
     showToast('success', `Reverted to ${targetStatus}.`)
   } catch (e) {
     showToast('danger', e?.message ?? 'Revert failed.')
@@ -1214,9 +1051,7 @@ async function doUndo(targetStatus, confirmMsg) {
 
 // ── Action: Revoke interview ──────────────────────────────────
 async function doRevokeInterview() {
-  if (!confirm(
-    'Revoke this interview? The candidate will need to be re-scheduled.'
-  )) return
+  if (!confirm('Revoke this interview? The candidate will need to be re-scheduled.')) return
   actionPending.value = true
   try {
     await store.cancelInterview(cid.value, applicationId)
@@ -1229,12 +1064,25 @@ async function doRevokeInterview() {
 }
 
 // ── Interview modal ───────────────────────────────────────────
+/**
+ * FIX — Pre-fill all fields from the existing interview when rescheduling.
+ *
+ * Previously `interview_date` was always reset to '' which:
+ *   1. Lost the existing date so the recruiter had to re-enter it.
+ *   2. Made it unclear whether they were editing or creating.
+ *
+ * Now we convert the stored ISO datetime → datetime-local string (YYYY-MM-DDTHH:mm)
+ * so the <input type="datetime-local"> displays the current scheduled time.
+ */
 function openInterviewModal() {
   const iv = interview.value
   Object.assign(interviewForm, {
     interview_type: iv?.interview_type ?? 'Technical',
     interview_mode: iv?.interview_mode ?? 'Online',
-    interview_date: '',
+    // Convert ISO → datetime-local format so the date input shows the existing value
+    interview_date: iv?.interview_date
+      ? new Date(iv.interview_date).toISOString().slice(0, 16)
+      : '',
     interview_link: iv?.interview_link ?? '',
     interviewer:    iv?.interviewer    ?? '',
     instructions:   iv?.instructions   ?? '',
@@ -1242,6 +1090,32 @@ function openInterviewModal() {
   interviewModal.show = true
 }
 
+/**
+ * FIX — Branch between create (POST) and update (PATCH) based on whether
+ * an interview already exists in the store.
+ *
+ * Previously `store.scheduleInterview` (POST) was always called, which caused
+ * the backend to throw a duplicate / already-exists error on reschedule.
+ *
+ * Now:
+ *   • No existing interview → scheduleInterview  (POST  — create)
+ *   • Existing interview    → rescheduleInterview (PATCH — update)
+ *
+ * The store action `rescheduleInterview` must call:
+ *   PATCH /api/company/<cid>/interviews/<applicationId>
+ * and update the cached record in the store, e.g.:
+ *
+ *   async rescheduleInterview(companyId, applicationId, payload) {
+ *     const res = await api.patch(
+ *       `/company/${companyId}/interviews/${applicationId}`, payload
+ *     )
+ *     const idx = this.interviews.findIndex(
+ *       i => i.application_id === applicationId
+ *     )
+ *     if (idx !== -1) this.interviews[idx] = res.data
+ *     else this.interviews.push(res.data)
+ *   }
+ */
 async function submitInterview() {
   if (!interviewForm.interview_date) {
     showToast('danger', 'Interview date is required.')
@@ -1249,17 +1123,25 @@ async function submitInterview() {
   }
   interviewModal.saving = true
   try {
-    await store.scheduleInterview(cid.value, applicationId, {
+    const payload = {
       ...interviewForm,
-      interview_date: new Date(
-        interviewForm.interview_date
-      ).toISOString(),
-    })
+      interview_date: new Date(interviewForm.interview_date).toISOString(),
+    }
+
+    const isReschedule = !!interview.value
+    if (isReschedule) {
+      await store.rescheduleInterview(cid.value, applicationId, payload)
+    } else {
+      await store.scheduleInterview(cid.value, applicationId, payload)
+    }
+
     interviewModal.show = false
-    showToast('success',
-      `Interview scheduled for ${student.value?.name}.`)
+    showToast(
+      'success',
+      `Interview ${isReschedule ? 'rescheduled' : 'scheduled'} for ${student.value?.name}.`
+    )
   } catch (e) {
-    showToast('danger', e?.message ?? 'Failed to schedule interview.')
+    showToast('danger', e?.message ?? 'Failed to save interview.')
   } finally {
     interviewModal.saving = false
   }
@@ -1281,17 +1163,14 @@ async function submitSelection() {
       status: selectionModal.status,
       ...(selectionForm.notes && { notes: selectionForm.notes }),
       ...(selectionModal.status === 'Selected' && {
-        ...(selectionForm.salary &&
-          { salary: selectionForm.salary }),
-        ...(selectionForm.joining_date &&
-          { joining_date: selectionForm.joining_date }),
+        ...(selectionForm.salary       && { salary:       selectionForm.salary }),
+        ...(selectionForm.joining_date && { joining_date: selectionForm.joining_date }),
       }),
     }
     await store.finalizeSelection(cid.value, applicationId, payload)
     selectionModal.show = false
     showToast('success',
-      `${student.value?.name} marked as ` +
-      `${selectionModal.status.toLowerCase()}.`)
+      `${student.value?.name} marked as ${selectionModal.status.toLowerCase()}.`)
   } catch (e) {
     showToast('danger', e?.message ?? 'Action failed.')
   } finally {
@@ -1323,10 +1202,7 @@ async function saveNotes() {
 }
 
 // ── Offer letter modal ────────────────────────────────────────
-// mode: 'edit' → open at Step 1 (form)
-// mode: 'preview' → open at Step 2 (read-only preview of current fields)
 function openOfferModal(mode = 'edit') {
-  // Pre-fill fields only when opening in edit mode (or first time)
   if (mode === 'edit') {
     const app   = application.value
     const drive = store.getDriveById(driveId)
@@ -1344,45 +1220,33 @@ function openOfferModal(mode = 'edit') {
     })
     offerModal.step = 1
   } else {
-    // preview: jump straight to Step 2 — fields already populated from last save
+    // preview mode — fields already populated from last save; jump to Step 2
     offerModal.step = 2
   }
   offerModal.show = true
 }
 
-// ── Save offer letter: html2pdf → Blob → FormData → POST /upload-offer ───────
 async function saveOfferLetter() {
   offerModal_saving.value = true
   try {
-    // Dynamically import html2pdf.js (must be installed: npm i html2pdf.js)
-    const html2pdf = (await import('html2pdf.js')).default
-
-    const element = document.getElementById('offer-print-area')
+    const html2pdf  = (await import('html2pdf.js')).default
+    const element   = document.getElementById('offer-print-area')
     if (!element) throw new Error('Offer letter preview element not found.')
 
     const opt = {
-      margin:      [10, 15, 10, 15],   // mm: top, right, bottom, left
+      margin:      [10, 15, 10, 15],
       filename:    `offer-letter-${studentId}.pdf`,
       image:       { type: 'jpeg', quality: 0.98 },
       html2canvas: { scale: 2, useCORS: true },
       jsPDF:       { unit: 'mm', format: 'a4', orientation: 'portrait' },
     }
 
-    // Capture the exact HTML preview the recruiter sees → PDF Blob
-    const pdfBlob = await html2pdf()
-      .set(opt)
-      .from(element)
-      .output('blob')
+    const pdfBlob = await html2pdf().set(opt).from(element).output('blob')
 
-    // Build FormData matching the backend endpoint
     const formData = new FormData()
-    formData.append('student_id',    String(studentId))
+    formData.append('student_id',     String(studentId))
     formData.append('application_id', String(applicationId))
-    formData.append(
-      'offer_letter',
-      pdfBlob,
-      `offer-letter-${studentId}.pdf`
-    )
+    formData.append('offer_letter',   pdfBlob, `offer-letter-${studentId}.pdf`)
 
     const token = localStorage.getItem('token')
     const base  = import.meta.env.VITE_API_BASE_URL ?? ''
@@ -1400,18 +1264,21 @@ async function saveOfferLetter() {
 
     const data = await res.json()
 
-    // Patch the in-memory applicant record so button state survives without refresh
-    const appRecord = (store.applicants[driveId] || [])
-      .find(a => a.id === applicationId)
+    // Patch in-memory applicant record so UI reacts without a full reload
+    const appRecord = (store.applicants[driveId] || []).find(a => a.id === applicationId)
     if (appRecord) {
       if (!appRecord.placement) appRecord.placement = {}
       appRecord.placement.offer_letter_filename = data.offer_letter_filename
       appRecord.placement.offer_letter_url      = data.offer_letter_url
     }
 
-    // Mark as generated this session → buttons switch to View / Edit
+    // Persist flag in localStorage — survives refresh without any backend change.
+    // The ref is initialised from localStorage on mount, so hasOfferLetter
+    // will already be true the next time this page loads.
+    localStorage.setItem(OFFER_KEY, '1')
     offerLetterSaved.value = true
-    offerModal.show        = false
+
+    offerModal.show = false
     showToast('success', 'Offer letter saved successfully.')
   } catch (e) {
     showToast('danger', e?.message ?? 'Failed to save offer letter.')
@@ -1420,10 +1287,7 @@ async function saveOfferLetter() {
   }
 }
 
-// ── View / Download Resume (opens in new tab) ─────────────────────────────────
-// FIX: revokeObjectURL was called immediately after click, before the browser
-//      could render the blob. Now we open in a new tab and revoke after 60 s.
-const resumeDownloadBusy = ref(false)
+// ── View / Download Resume ────────────────────────────────────
 async function viewResume() {
   if (!student.value?.resume_filename) return
   resumeDownloadBusy.value = true
@@ -1435,16 +1299,10 @@ async function viewResume() {
       headers: { 'Authentication-Token': token },
     })
     if (!res.ok) throw new Error(`Download failed (${res.status})`)
-    const blob = await res.blob()
-
-    // Create a blob URL with the correct MIME type so browsers render PDFs inline
+    const blob    = await res.blob()
     const pdfBlob = new Blob([blob], { type: 'application/pdf' })
     const url     = URL.createObjectURL(pdfBlob)
-
-    // Open in new tab — browser will render the PDF natively
     window.open(url, '_blank')
-
-    // Revoke after 60 s to free memory (browser has already loaded it by then)
     setTimeout(() => URL.revokeObjectURL(url), 60_000)
   } catch (e) {
     showToast('danger', e?.message ?? 'Failed to load resume.')
@@ -1475,8 +1333,7 @@ function formatDateTime(d) {
 }
 
 function initials(name) {
-  return (name || '?')
-    .split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+  return (name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
 }
 
 function statusBadgeClass(status) {
@@ -1554,9 +1411,7 @@ onMounted(loadStudent)
   font-size: .92rem; line-height: 1.9;
   background: #fff;
 }
-.toast-banner {
-  border-radius: 10px;
-}
+.toast-banner { border-radius: 10px; }
 .letter-spacing-1 { letter-spacing: .05em; }
 .fade-enter-active, .fade-leave-active { transition: opacity .3s; }
 .fade-enter-from,  .fade-leave-to      { opacity: 0; }
