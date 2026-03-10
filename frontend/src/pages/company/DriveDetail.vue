@@ -577,14 +577,16 @@ async function saveEdit() {
 async function toggleStatus() {
   toggling.value = true
   try {
+    const newStatus = drive.value.status === 'Open' ? 'Closed' : 'Open'
+
     const updated = await companyStore.toggleDriveStatus(
       userStore.companyId,
       driveId.value,
+      newStatus
     )
+
     drive.value = { ...drive.value, status: updated.status }
-    showToast('success', `Drive is now ${drive.value.status}.`)
-  } catch (e) {
-    showToast('danger', e?.message ?? 'Failed to update status.')
+
   } finally {
     toggling.value = false
   }

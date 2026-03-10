@@ -21,16 +21,14 @@ const CompanyDashboard = () => import('@/pages/company/Dashboard.vue')
 const CompanyProfile   = () => import('@/pages/company/Profile.vue')
 const CompanyCreateDrive = () => import('@/pages/company/CreateDrive.vue')
 const CompanyDriveDetail = () => import('@/pages/company/DriveDetail.vue')
-const CompanyApplicants  = () => import('@/pages/company/Applicants.vue')
-const CompanyStudentView  = () => import('@/pages/company/StudentView.vue')
+const CompanyApplicants  = () => import('@/pages/company/Companyapplicants.vue')
+
 
 const AdminDashboard   = () => import('@/pages/admin/Dashboard.vue')
 const AdminStudents    = () => import('@/pages/admin/Students.vue')
 const AdminCompanies   = () => import('@/pages/admin/Companies.vue')
 const AdminGraphStats   = () => import('@/pages/admin/GraphStats.vue')
 const AdminDriveDetail = () => import('@/pages/admin/DriveDetail.vue')
-const AdminStudentView  = () => import('@/pages/admin/StudentDetail.vue')
-const AdminCompanyView  = () => import('@/pages/admin/CompanyView.vue')
 
 
 // common routes for both student compny admin can be added here if needed
@@ -59,7 +57,6 @@ const routes = [
   { path: '/company/profile',                  name: 'CompanyProfile',   component: CompanyProfile,     meta: { auth: true, role: 'company' } },
   { path: '/company/create-drive',             name: 'CreateDrive',      component: CompanyCreateDrive, meta: { auth: true, role: "company"} },
   { path: '/company/drives/:driveId',          name: 'DriveDetail',      component: CompanyDriveDetail, meta: { auth: true }, role: "company" },
-  { path: '/company/students/:studentId', name: 'CompanyStudentView', component: CompanyStudentView, meta: { auth: true, role: 'company' } },
   { path: '/company/drives/:driveId/applicants', name: 'Applicants',     component: CompanyApplicants,  meta: { auth: true} },
 
   // Admin
@@ -68,8 +65,6 @@ const routes = [
   { path: '/admin/companies',  name: 'AdminCompanies', component: AdminCompanies, meta: { auth: true, role: 'admin' } },
   { path: '/admin/graph-stats', name: 'AdminGraphStats', component: AdminGraphStats, meta: { auth: true, role: 'admin' } },
   {path: '/admin/:companyId/drives/:driveId', name: 'AdminDriveDetail', component: AdminDriveDetail, meta: { auth: true, role: 'admin' } },
-  {path: '/admin/students/:studentId', name: 'AdminStudentView', component: AdminStudentView, meta: { auth: true, role: 'admin' } },
-  {path: '/admin/companies/:companyId', name: 'AdminCompanyView', component: AdminCompanyView, meta: { auth: true, role: 'admin' } },
 
   // Common
   { path: '/view-drive/:driveId', name: 'ViewDrive', component: viewdrive, meta: { auth: true} },

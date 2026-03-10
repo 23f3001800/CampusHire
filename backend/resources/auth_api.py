@@ -1,10 +1,9 @@
 from flask import Blueprint, request, jsonify, current_app
 from models import User, Student, Company
-from db import db
+from extensions import db
 from flask_security.utils import verify_password, hash_password
 from flask_security import auth_required, current_user
 import uuid
-from tasks import send_welcome_email
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/api/auth')
 
@@ -116,7 +115,6 @@ def register():
             ))
 
         db.session.commit()
-        send_welcome_email.delay(user.id)
 
     except Exception as e:
         db.session.rollback()

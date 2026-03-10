@@ -258,7 +258,7 @@
                     <td>
                       <span class="badge bg-light text-dark border">
                         <i class="bi bi-people"></i>
-                        {{ d.application_count || 0 }} Applications
+                        {{ d.total_applications || 0 }} Applications
                       </span>
                     </td>
                   </div>
@@ -320,7 +320,7 @@
                 <tr v-for="p in filteredPlacements" :key="p.id">
                   <td>
                     <router-link
-                      :to="`/admin/students/${p.student_id}`"
+                      :to="`/admin/students`"
                       class="fw-semibold text-decoration-none">
                       {{ p.student_name }}
                     </router-link>
@@ -347,11 +347,12 @@
                     </small>
                   </td>
                   <td>
-                    <a v-if="p.offer_letter"
-                       :href="p.offer_letter" target="_blank"
-                       class="btn btn-sm btn-outline-secondary">
+                    <a v-if="p.offer_letter_filename"
+                      @click.prevent="viewOffer(p.offer_letter_filename)"
+                      class="btn btn-sm btn-outline-secondary">
                       <i class="bi bi-file-earmark-pdf"></i>
                     </a>
+
                     <span v-else class="text-muted small">—</span>
                   </td>
                 </tr>
@@ -380,12 +381,15 @@ import {
   Legend,
 } from 'chart.js'
 
+
+
 Chart.register(
   DoughnutController, BarController,
   ArcElement, BarElement,
   CategoryScale, LinearScale,
   Tooltip, Legend
 )
+
 
 export default {
   name: 'AdminDashboard',
@@ -407,6 +411,7 @@ export default {
       { type: 'placements',icon: 'bi-trophy-fill', color: 'warning', label: 'Placements' },
     ],
     rowBusy:            {},
+    offerBusy:             {},
     driveSearch:        '',
     driveStatusFilter:  '',
     driveApprovalFilter:'',
@@ -517,6 +522,18 @@ export default {
     async exportData(type) {
       try { await this.adminStore.exportData(type) }
       catch (e) { alert(e.message ?? 'Export failed') }
+    },
+
+    async viewOffer(filename) {
+      this.offerBusy = true  // ✅ no .value
+      try {
+        const blob = await this.adminStore.fetchofferletter(filename)
+        if (blob) window.open(URL.createObjectURL(blob), '_blank')
+      } catch (e) {
+        showToast('danger', e?.message ?? 'Failed to load resume.')
+      } finally {
+        this.offerBusy = false // ✅ correct
+      }
     },
 
     // ── Charts ──────────────────────────────────────────────────────────

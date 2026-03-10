@@ -1,13 +1,14 @@
-from cache import cache
+
+from flask_mail import Message
 from flask import Flask
 from config import DevelopmentConfig
 from models import db
-from db import security
 from resources import auth_bp, api_bp
-from extensions import mail
+from extensions import mail, cache, security
 from flask_security import SQLAlchemyUserDatastore
 from models import User, Role 
 from flask_cors import CORS
+
 
 
 def create_app():
@@ -15,9 +16,11 @@ def create_app():
     app.config.from_object(DevelopmentConfig)
     db.init_app(app)
     # Initialize Flask-Mail
+
     mail.init_app(app)
      # Initialize Flask-Caching
     cache.init_app(app)
+      # ← Celery context setup before registering blueprints
      # ADDED: Enable CORS for frontend communication
     # REASON: Frontend runs on :5173, backend on :5000 - CORS required
     CORS(app, resources={
@@ -39,6 +42,11 @@ def create_app():
     return app
 
 app=create_app()
+
+
+
+
+
 
 
 if __name__ == "__main__":

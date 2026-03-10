@@ -2,6 +2,21 @@
   <div class="bg-light min-vh-100 py-4">
     <div class="container" style="max-width:960px">
 
+      <!-- Toast -->
+      <Transition name="fade">
+        <div v-if="toast.show"
+             class="position-fixed top-0 end-0 m-3 alert d-flex
+                    align-items-center gap-2 shadow z-3"
+             :class="`alert-${toast.type}`"
+             style="min-width:280px">
+          <i class="bi flex-shrink-0"
+             :class="toast.type === 'success'
+               ? 'bi-check-circle-fill' : 'bi-exclamation-triangle-fill'"></i>
+          <span class="flex-grow-1">{{ toast.message }}</span>
+          <button class="btn-close" @click="toast.show = false"></button>
+        </div>
+      </Transition>
+
       <!-- Header -->
       <div class="d-flex align-items-center
                   justify-content-between mb-4 flex-wrap gap-2">
@@ -11,32 +26,16 @@
         </div>
         <div class="d-flex gap-2 align-items-center flex-wrap">
 
-          <!-- CSV Export — only on Applications tab -->
-          <template v-if="activeTab === 'applications'">
-            <button v-if="!store.csvExport.status"
-                    class="btn btn-success btn-sm"
-                    :disabled="!store.applications.length"
-                    @click="startExport">
-              <i class="bi bi-file-earmark-spreadsheet me-1"></i>Export CSV
-            </button>
-            <button v-else-if="store.csvExport.status === 'PENDING'"
-                    class="btn btn-success btn-sm" disabled>
-              <span class="spinner-border spinner-border-sm me-1"></span>Exporting…
-            </button>
-            <div v-else-if="store.csvExport.status === 'SUCCESS'" class="d-flex gap-1">
-              <a :href="`${apiBase}${store.csvExport.downloadUrl}`"
-                 class="btn btn-success btn-sm" target="_blank">
-                <i class="bi bi-download me-1"></i>Download
-              </a>
-              <button class="btn btn-outline-secondary btn-sm" @click="store.resetCSVExport()">
-                <i class="bi bi-arrow-repeat"></i>
-              </button>
-            </div>
-            <button v-else-if="store.csvExport.status === 'FAILURE'"
-                    class="btn btn-danger btn-sm" @click="store.resetCSVExport()">
-              <i class="bi bi-exclamation-circle me-1"></i>Failed — Retry
-            </button>
-          </template>
+          <!-- CSV Export -->
+          <button v-if="activeTab === 'applications'"
+                  class="btn btn-success btn-sm"
+                  :disabled="store.csvExporting || !store.applications.length"
+                  @click="exportCSV">
+            <span v-if="store.csvExporting"
+                  class="spinner-border spinner-border-sm me-1"></span>
+            <i v-else class="bi bi-file-earmark-spreadsheet me-1"></i>
+            {{ store.csvExporting ? 'Exporting…' : 'Export CSV' }}
+          </button>
 
           <router-link :to="`/student/${userStore.studentId}`"
                        class="btn btn-outline-secondary btn-sm">
@@ -56,7 +55,7 @@
         </div>
       </div>
 
-      <!-- ── ONE stats strip ── -->
+      <!-- Stats strip -->
       <div class="row g-3 mb-4">
         <div class="col-6 col-md-3">
           <div class="card border-0 shadow-sm text-center py-3">
@@ -92,7 +91,8 @@
                   @click="activeTab = 'applications'">
             <i class="bi bi-send me-2"></i>Applications
             <span class="badge ms-2 rounded-pill"
-                  :class="activeTab === 'applications' ? 'bg-primary' : 'bg-secondary bg-opacity-25 text-secondary'">
+                  :class="activeTab === 'applications'
+                    ? 'bg-primary' : 'bg-secondary bg-opacity-25 text-secondary'">
               {{ store.applications.length }}
             </span>
           </button>
@@ -103,7 +103,8 @@
                   @click="activeTab = 'placements'">
             <i class="bi bi-trophy me-2"></i>Placements
             <span class="badge ms-2 rounded-pill"
-                  :class="activeTab === 'placements' ? 'bg-success' : 'bg-secondary bg-opacity-25 text-secondary'">
+                  :class="activeTab === 'placements'
+                    ? 'bg-success' : 'bg-secondary bg-opacity-25 text-secondary'">
               {{ store.placements.length }}
             </span>
             <span v-if="store.hasActivePlacement"
@@ -152,7 +153,8 @@
             {{ search || statusFilter ? 'No applications match your filters'
                                       : "You haven't applied to any drives yet" }}
           </p>
-          <router-link :to="`/student/${userStore.studentId}`" class="btn btn-primary mt-2">
+          <router-link :to="`/student/${userStore.studentId}`"
+                       class="btn btn-primary mt-2">
             Browse Drives
           </router-link>
         </div>
@@ -218,12 +220,14 @@
                   </router-link>
                   <button v-if="app.status === 'Shortlisted' || app.status === 'Selected'"
                           class="btn btn-sm"
-                          :class="expandedInterview === app.id ? 'btn-info text-white' : 'btn-outline-info'"
-                          @click="toggleInterview(app.id)">
+                          :class="expandedInterview === app.id
+                            ? 'btn-info text-white' : 'btn-outline-info'"
+                          @click="toggleInterview(app.id, app.company_id)">
                     <span v-if="interviewLoading[app.id]"
                           class="spinner-border spinner-border-sm me-1"></span>
                     <i v-else class="bi me-1"
-                       :class="expandedInterview === app.id ? 'bi-chevron-up' : 'bi-camera-video'"></i>
+                       :class="expandedInterview === app.id
+                         ? 'bi-chevron-up' : 'bi-camera-video'"></i>
                     {{ expandedInterview === app.id ? 'Hide Interview' : 'Interview Details' }}
                   </button>
                 </div>
@@ -256,9 +260,13 @@
                   </div>
                   <div v-else class="interview-panel rounded-3 p-3">
                     <div class="d-flex align-items-center gap-2 mb-3">
-                      <div class="iv-icon"><i class="bi bi-camera-video-fill text-info"></i></div>
+                      <div class="iv-icon">
+                        <i class="bi bi-camera-video-fill text-info"></i>
+                      </div>
                       <div>
-                        <span class="fw-semibold text-info small d-block">Interview Scheduled</span>
+                        <span class="fw-semibold text-info small d-block">
+                          Interview Scheduled
+                        </span>
                         <span class="text-muted" style="font-size:.75rem">
                           Round {{ interviewData[app.id].round_number ?? 1 }} —
                           {{ interviewData[app.id].interview_type ?? 'Interview' }}
@@ -271,22 +279,32 @@
                     </div>
                     <div class="row g-3 small">
                       <div class="col-sm-4" v-if="interviewData[app.id].scheduled_at">
-                        <div class="text-muted mb-1"><i class="bi bi-calendar-event me-1"></i>Date & Time</div>
+                        <div class="text-muted mb-1">
+                          <i class="bi bi-calendar-event me-1"></i>Date &amp; Time
+                        </div>
                         <strong>{{ fmtDT(interviewData[app.id].scheduled_at) }}</strong>
                       </div>
                       <div class="col-sm-4" v-if="interviewData[app.id].mode">
-                        <div class="text-muted mb-1"><i class="bi bi-display me-1"></i>Mode</div>
-                        <strong class="text-capitalize">{{ interviewData[app.id].mode }}</strong>
+                        <div class="text-muted mb-1">
+                          <i class="bi bi-display me-1"></i>Mode
+                        </div>
+                        <strong class="text-capitalize">
+                          {{ interviewData[app.id].mode }}
+                        </strong>
                       </div>
                       <div class="col-sm-4" v-if="interviewData[app.id].duration_minutes">
-                        <div class="text-muted mb-1"><i class="bi bi-clock me-1"></i>Duration</div>
+                        <div class="text-muted mb-1">
+                          <i class="bi bi-clock me-1"></i>Duration
+                        </div>
                         <strong>{{ interviewData[app.id].duration_minutes }} min</strong>
                       </div>
                       <div class="col-12"
-                           v-if="interviewData[app.id].venue || interviewData[app.id].meeting_link">
+                           v-if="interviewData[app.id].venue
+                              || interviewData[app.id].meeting_link">
                         <div class="text-muted mb-1">
                           <i class="bi me-1"
-                             :class="interviewData[app.id].meeting_link ? 'bi-link-45deg' : 'bi-geo-alt'"></i>
+                             :class="interviewData[app.id].meeting_link
+                               ? 'bi-link-45deg' : 'bi-geo-alt'"></i>
                           {{ interviewData[app.id].meeting_link ? 'Meeting Link' : 'Venue' }}
                         </div>
                         <a v-if="interviewData[app.id].meeting_link"
@@ -297,7 +315,9 @@
                         <strong v-else>{{ interviewData[app.id].venue }}</strong>
                       </div>
                       <div class="col-12" v-if="interviewData[app.id].instructions">
-                        <div class="text-muted mb-1"><i class="bi bi-info-circle me-1"></i>Instructions</div>
+                        <div class="text-muted mb-1">
+                          <i class="bi bi-info-circle me-1"></i>Instructions
+                        </div>
                         <div class="iv-instructions rounded-2 p-2">
                           {{ interviewData[app.id].instructions }}
                         </div>
@@ -320,7 +340,9 @@
         <div v-else-if="!store.placements.length" class="text-center py-5">
           <i class="bi bi-trophy fs-1 text-muted d-block mb-3"></i>
           <h5 class="text-muted">No Placements Yet</h5>
-          <p class="text-muted small">When you get selected, your offers will appear here.</p>
+          <p class="text-muted small">
+            When you get selected, your offers will appear here.
+          </p>
           <button class="btn btn-primary mt-2" @click="activeTab = 'applications'">
             <i class="bi bi-send me-2"></i>View My Applications
           </button>
@@ -366,7 +388,8 @@
               <div v-if="p.offer_letter_filename || p.offer_letter_url" class="mt-3">
                 <button class="btn btn-outline-primary btn-sm"
                         :disabled="dlBusy[p.id]" @click="viewOffer(p)">
-                  <span v-if="dlBusy[p.id]" class="spinner-border spinner-border-sm me-1"></span>
+                  <span v-if="dlBusy[p.id]"
+                        class="spinner-border spinner-border-sm me-1"></span>
                   <i v-else class="bi bi-file-earmark-pdf me-1"></i>
                   {{ dlBusy[p.id] ? 'Opening…' : 'View Offer Letter' }}
                 </button>
@@ -387,19 +410,22 @@
                 </div>
               </div>
 
+              <!-- ── Offer pending: Accept / Decline ── -->
               <div v-if="p.status === 'Offered'" class="mt-3 pt-3 border-top">
                 <p class="small text-muted mb-2">
                   <i class="bi bi-exclamation-circle me-1 text-warning"></i>
                   Please respond to this offer.
                 </p>
                 <div class="d-flex gap-2 flex-wrap">
-                  <button class="btn btn-success btn-sm" :disabled="offerBusy[p.id]"
+                  <button class="btn btn-success btn-sm"
+                          :disabled="!!offerBusy[p.id]"
                           @click="handleAccept(p.id)">
                     <span v-if="offerBusy[p.id] === 'accept'"
                           class="spinner-border spinner-border-sm me-1"></span>
                     <i v-else class="bi bi-check-circle me-1"></i>Accept Offer
                   </button>
-                  <button class="btn btn-outline-danger btn-sm" :disabled="offerBusy[p.id]"
+                  <button class="btn btn-outline-danger btn-sm"
+                          :disabled="!!offerBusy[p.id]"
                           @click="handleDecline(p.id)">
                     <span v-if="offerBusy[p.id] === 'decline'"
                           class="spinner-border spinner-border-sm me-1"></span>
@@ -407,6 +433,53 @@
                   </button>
                 </div>
               </div>
+
+              <!-- ── Decision made: show undo option (fully reversible) ── -->
+              <div v-else-if="p.status === 'Joined' || p.status === 'Declined'"
+                   class="mt-3 pt-3 border-top">
+                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                  <p class="small text-muted mb-0">
+                    <i class="bi bi-info-circle me-1"></i>
+                    <span v-if="p.status === 'Joined'">
+                      You accepted this offer.
+                    </span>
+                    <span v-else>
+                      You declined this offer.
+                    </span>
+                  </p>
+                  <div class="d-flex gap-2 flex-wrap">
+                    <!-- Undo: reset back to Offered -->
+                    <button class="btn btn-outline-secondary btn-sm"
+                            :disabled="!!offerBusy[p.id]"
+                            @click="handleUndo(p.id)">
+                      <span v-if="offerBusy[p.id] === 'undo'"
+                            class="spinner-border spinner-border-sm me-1"></span>
+                      <i v-else class="bi bi-arrow-counterclockwise me-1"></i>
+                      Undo Decision
+                    </button>
+                    <!-- Switch: if Joined → Decline, if Declined → Accept -->
+                    <button v-if="p.status === 'Joined'"
+                            class="btn btn-outline-danger btn-sm"
+                            :disabled="!!offerBusy[p.id]"
+                            @click="handleDecline(p.id)">
+                      <span v-if="offerBusy[p.id] === 'decline'"
+                            class="spinner-border spinner-border-sm me-1"></span>
+                      <i v-else class="bi bi-x-circle me-1"></i>
+                      Switch to Declined
+                    </button>
+                    <button v-else-if="p.status === 'Declined'"
+                            class="btn btn-success btn-sm"
+                            :disabled="!!offerBusy[p.id]"
+                            @click="handleAccept(p.id)">
+                      <span v-if="offerBusy[p.id] === 'accept'"
+                            class="spinner-border spinner-border-sm me-1"></span>
+                      <i v-else class="bi bi-check-circle me-1"></i>
+                      Switch to Accepted
+                    </button>
+                  </div>
+                </div>
+              </div>
+
             </div>
           </div>
         </div>
@@ -432,6 +505,7 @@ const sortBy       = ref('newest')
 const rowBusy      = reactive({})
 const offerBusy    = reactive({})
 const dlBusy       = reactive({})
+const toast        = reactive({ show: false, type: 'success', message: '' })
 
 const expandedInterview = ref(null)
 const interviewLoading  = reactive({})
@@ -461,7 +535,7 @@ const highestSalary = computed(() => {
   return s.length ? fmtSalary(Math.max(...s)) : 'N/A'
 })
 
-// ── Cross-tab ─────────────────────────────────────────────────
+// ── Cross-tab helpers ─────────────────────────────────────────
 function placementForApp(appId) {
   return store.placements.find(p => p.application_id === appId)
 }
@@ -483,14 +557,15 @@ async function jumpToApplication(appId) {
 }
 
 // ── Interview ─────────────────────────────────────────────────
-async function toggleInterview(appId) {
+async function toggleInterview(appId, companyId) {
   if (expandedInterview.value === appId) { expandedInterview.value = null; return }
   expandedInterview.value = appId
+  if (!companyId) return
   if (interviewData[appId] !== undefined) return
   interviewLoading[appId] = true
   interviewError[appId]   = null
   try {
-    interviewData[appId] = await store.fetchInterview(userStore.studentId, appId) ?? null
+    interviewData[appId] = await store.fetchInterview(companyId, appId) ?? null
   } catch (e) {
     interviewError[appId] = e?.message ?? 'Failed to load interview details'
   } finally {
@@ -498,32 +573,64 @@ async function toggleInterview(appId) {
   }
 }
 
-// ── Actions ───────────────────────────────────────────────────
-async function startExport() {
-  try { await store.startCSVExport(userStore.studentId) }
-  catch (e) { alert(e.message ?? 'Export failed') }
+// ── CSV Export ────────────────────────────────────────────────
+async function exportCSV() {
+  try {
+    await store.exportApplicationsCSV(userStore.studentId)
+    showToast('success', 'CSV downloaded successfully.')
+  } catch {
+    showToast('danger', store.csvError || 'Export failed.')
+  }
 }
+
+// ── Withdraw application ──────────────────────────────────────
 async function withdraw(appId) {
   if (!confirm('Withdraw this application?')) return
   rowBusy[appId] = true
   try { await store.withdrawApplication(userStore.studentId, appId) }
-  catch (e) { alert(e?.message ?? 'Failed to withdraw') }
+  catch (e) { showToast('danger', e?.message ?? 'Failed to withdraw.') }
   finally { rowBusy[appId] = false }
 }
+
+// ── Offer actions (all reversible via backend) ────────────────
+// Backend: PATCH /api/student/:studentId/placements/:placementId
+// Allowed status values: 'Offered' | 'Joined' | 'Declined'
+
 async function handleAccept(id) {
   if (!confirm('Accept this offer?')) return
   offerBusy[id] = 'accept'
-  try { await store.acceptOffer(userStore.studentId, id) }
-  catch (e) { alert(e?.message ?? 'Failed.') }
-  finally { offerBusy[id] = false }
+  try {
+    await store.updatePlacementStatus(userStore.studentId, id, 'Joined')
+    showToast('success', 'Offer accepted! Congratulations 🎉')
+  } catch (e) {
+    showToast('danger', e?.message ?? 'Failed to accept offer.')
+  } finally { offerBusy[id] = false }
 }
+
 async function handleDecline(id) {
-  if (!confirm('Decline this offer? Cannot be undone.')) return
+  if (!confirm('Decline this offer?')) return
   offerBusy[id] = 'decline'
-  try { await store.declineOffer(userStore.studentId, id) }
-  catch (e) { alert(e?.message ?? 'Failed.') }
-  finally { offerBusy[id] = false }
+  try {
+    await store.updatePlacementStatus(userStore.studentId, id, 'Declined')
+    showToast('success', 'Offer declined.')
+  } catch (e) {
+    showToast('danger', e?.message ?? 'Failed to decline offer.')
+  } finally { offerBusy[id] = false }
 }
+
+// Undo: resets Joined or Declined back to Offered
+async function handleUndo(id) {
+  if (!confirm('Reset this offer back to Offered?')) return
+  offerBusy[id] = 'undo'
+  try {
+    await store.updatePlacementStatus(userStore.studentId, id, 'Offered')
+    showToast('success', 'Decision undone — offer is pending again.')
+  } catch (e) {
+    showToast('danger', e?.message ?? 'Failed to undo decision.')
+  } finally { offerBusy[id] = false }
+}
+
+// ── View offer letter ─────────────────────────────────────────
 async function viewOffer(p) {
   dlBusy[p.id] = true
   try {
@@ -533,39 +640,68 @@ async function viewOffer(p) {
       headers: { 'Authentication-Token': localStorage.getItem('token') },
     })
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
-    const url = URL.createObjectURL(new Blob([await res.blob()], { type: 'application/pdf' }))
+    const url = URL.createObjectURL(
+      new Blob([await res.blob()], { type: 'application/pdf' })
+    )
     window.open(url, '_blank')
     setTimeout(() => URL.revokeObjectURL(url), 60_000)
-  } catch (e) { alert(e?.message ?? 'Failed to open offer letter.') }
-  finally { dlBusy[p.id] = false }
+  } catch (e) {
+    showToast('danger', e?.message ?? 'Failed to open offer letter.')
+  } finally {
+    dlBusy[p.id] = false
+  }
 }
 
 // ── Helpers ───────────────────────────────────────────────────
+function showToast(type, message, ms = 4000) {
+  Object.assign(toast, { show: true, type, message })
+  setTimeout(() => (toast.show = false), ms)
+}
 function fmt(d) {
-  return d ? new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'
+  return d ? new Date(d).toLocaleDateString('en-IN', {
+    day: 'numeric', month: 'short', year: 'numeric',
+  }) : '—'
 }
 function fmtDT(d) {
-  return d ? new Date(d).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'
+  return d ? new Date(d).toLocaleString('en-IN', {
+    day: 'numeric', month: 'short', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  }) : '—'
 }
 function fmtSalary(s, currency = 'INR') {
   if (!s) return 'Not disclosed'
   const sym = currency === 'INR' ? '₹' : (currency ?? '₹')
-  return s >= 100_000 ? `${sym}${(s / 100_000).toFixed(1)} LPA` : `${sym}${s.toLocaleString('en-IN')}`
+  return s >= 100_000
+    ? `${sym}${(s / 100_000).toFixed(1)} LPA`
+    : `${sym}${s.toLocaleString('en-IN')}`
 }
 function appStatusClass(s) {
-  return { Applied: 'bg-primary', Shortlisted: 'bg-info text-dark', Selected: 'bg-success', Rejected: 'bg-danger' }[s] ?? 'bg-secondary'
+  return {
+    Applied: 'bg-primary', Shortlisted: 'bg-info text-dark',
+    Selected: 'bg-success', Rejected: 'bg-danger',
+  }[s] ?? 'bg-secondary'
 }
 function appStatusIcon(s) {
-  return { Applied: 'bi-send', Shortlisted: 'bi-star', Selected: 'bi-trophy', Rejected: 'bi-x-circle' }[s] ?? 'bi-circle'
+  return {
+    Applied: 'bi-send', Shortlisted: 'bi-star',
+    Selected: 'bi-trophy', Rejected: 'bi-x-circle',
+  }[s] ?? 'bi-circle'
 }
 function pStatusBadge(s) {
-  return { Offered: 'bg-warning text-dark', Joined: 'bg-success', Declined: 'bg-danger' }[s] ?? 'bg-secondary'
+  return {
+    Offered: 'bg-warning text-dark', Joined: 'bg-success', Declined: 'bg-danger',
+  }[s] ?? 'bg-secondary'
 }
 function pStatusIcon(s) {
-  return { Offered: 'bi-envelope-open', Joined: 'bi-trophy', Declined: 'bi-x-circle' }[s] ?? 'bi-circle'
+  return {
+    Offered: 'bi-envelope-open', Joined: 'bi-trophy', Declined: 'bi-x-circle',
+  }[s] ?? 'bi-circle'
 }
 function ivStatusBadge(s) {
-  return { Scheduled: 'bg-info text-dark', Completed: 'bg-success', Cancelled: 'bg-danger', Rescheduled: 'bg-warning text-dark' }[s] ?? 'bg-secondary'
+  return {
+    Scheduled: 'bg-info text-dark', Completed: 'bg-success',
+    Cancelled: 'bg-danger', Rescheduled: 'bg-warning text-dark',
+  }[s] ?? 'bg-secondary'
 }
 
 onMounted(async () => {
@@ -599,7 +735,11 @@ onMounted(async () => {
   background: rgba(13,202,240,.12);
   display: flex; align-items: center; justify-content: center;
 }
-.iv-instructions { background: rgba(255,255,255,.7); border: 1px solid #d0edf7; line-height: 1.5; }
+.iv-instructions {
+  background: rgba(255,255,255,.7);
+  border: 1px solid #d0edf7;
+  line-height: 1.5;
+}
 @keyframes highlight-flash {
   0%   { box-shadow: 0 0 0 4px rgba(13,110,253,.45); }
   100% { box-shadow: none; }
@@ -608,4 +748,6 @@ onMounted(async () => {
 .slide-enter-active, .slide-leave-active { transition: all .25s ease; overflow: hidden; }
 .slide-enter-from, .slide-leave-to { opacity: 0; max-height: 0; transform: translateY(-6px); }
 .slide-enter-to, .slide-leave-from { opacity: 1; max-height: 600px; }
+.fade-enter-active, .fade-leave-active { transition: opacity .3s; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
 </style>

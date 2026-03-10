@@ -156,6 +156,7 @@ application_fields = {
     'id':         fields.Integer,
     'student_id': fields.Integer,
     'drive_id':   fields.Integer,
+    "company_id": fields.Integer(attribute="drive.company_id"),
 
     # From Student
     'student_name':   _attr(lambda x: x.student.user.name   if x.student and x.student.user else None),

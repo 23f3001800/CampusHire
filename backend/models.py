@@ -1,4 +1,4 @@
-from db import db
+from extensions import db
 from flask_security import UserMixin, RoleMixin
 from datetime import datetime
 
@@ -191,6 +191,7 @@ class Interview(db.Model):
     instructions    = db.Column(db.Text)
     interviewer     = db.Column(db.String(255))
     feedback        = db.Column(db.Text)
+    status          = db.Column(db.String(20), default='Scheduled')  # 'Scheduled','Completed','Cancelled'
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

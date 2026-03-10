@@ -209,6 +209,17 @@ export const useAdminStore = defineStore('admin', {
       }
     },
 
+    async fetchofferletter(filename) {
+      try {
+        const res = await api.get(`/uploads/offers/${filename}`, {
+          responseType: "blob"
+        })
+        return res
+      } catch (e) {
+        this.error = e.message
+        return null
+      }
+    },
 
     // ── GET /admin/students/:id/applications ───────────────────────────────
     async fetchStudentApplications(studentId, force = false) {
@@ -284,6 +295,15 @@ export const useAdminStore = defineStore('admin', {
         return null
       }
     },
+    async fetchDriveApplicants(driveId, force = false) {
+      if (!force && this.driveApplicants?.[driveId]) 
+        return this.driveApplicants[driveId]
+      
+      const res = await api.get(`/admin/drives/${driveId}/applicants`)
+      if (!this.driveApplicants) this.driveApplicants = {}
+      this.driveApplicants[driveId] = res
+      return res
+    },
 
     // ── GET /admin/placements ──────────────────────────────────────────────
     async fetchPlacements(force = false) {
@@ -291,6 +311,7 @@ export const useAdminStore = defineStore('admin', {
       this.loadingPlacements = true; this.error = null
       try {
         this.placements    = await api.get('/admin/placements')
+        console.log('Fetched placements:', this.placements)
         this.ts.placements = Date.now()
       } catch (e) { this.error = e.message }
       finally       { this.loadingPlacements = false }
@@ -328,7 +349,7 @@ export const useAdminStore = defineStore('admin', {
     // block   → { active: false }
     // unblock → { active: true }
     // ═══════════════════════════════════════════════════════════════════════
-    async patchStudent(studentId, payload) {
+    async adminstudentactions(studentId, payload) {
       await api.patch(`/student/${studentId}`, payload)
       this._patch('students', studentId, payload)
       const detail = this.studentDetail[studentId]

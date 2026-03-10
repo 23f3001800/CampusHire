@@ -21,16 +21,14 @@
         <!-- Toast -->
         <Transition name="fade">
           <div v-if="toast.show"
-               class="alert d-flex align-items-center
-                      gap-2 shadow-sm mb-3"
+               class="alert d-flex align-items-center gap-2 shadow-sm mb-3"
                :class="`alert-${toast.type}`">
             <i class="bi flex-shrink-0"
                :class="toast.type === 'success'
                  ? 'bi-check-circle-fill'
                  : 'bi-exclamation-triangle-fill'"></i>
             <span class="flex-grow-1">{{ toast.message }}</span>
-            <button class="btn-close"
-                    @click="toast.show = false"></button>
+            <button class="btn-close" @click="toast.show = false"></button>
           </div>
         </Transition>
 
@@ -43,46 +41,40 @@
           </button>
 
           <div class="d-flex gap-2 flex-wrap align-items-center">
-
-            <!-- Approval status badge — always visible for all three states -->
+            <!-- Approval badge -->
             <span class="badge fs-6 px-3 py-2"
                   :class="approvalBadgeClass(drive.admin_approval_status)">
               <i class="bi me-1"
                  :class="drive.admin_approval_status === 'Approved'
                    ? 'bi-check-circle'
                    : drive.admin_approval_status === 'Rejected'
-                   ? 'bi-x-circle'
-                   : 'bi-hourglass-split'"></i>
-              {{ drive.admin_approval_status }}
+                   ? 'bi-x-circle' : 'bi-hourglass-split'"></i>
+              {{ drive.admin_approval_status ?? 'Pending' }}
             </span>
 
-            <!-- Approve button — shown whenever drive is NOT already Approved -->
             <button v-if="drive.admin_approval_status !== 'Approved'"
                     class="btn btn-success btn-sm"
                     :disabled="approving"
                     @click="setApproval('Approved')">
               <span v-if="approving"
-                    class="spinner-border spinner-border-sm me-1">
-              </span>
+                    class="spinner-border spinner-border-sm me-1"></span>
               <i v-else class="bi bi-check-circle me-1"></i>
               Approve
             </button>
 
-            <!-- Reject button — shown whenever drive is NOT already Rejected -->
             <button v-if="drive.admin_approval_status !== 'Rejected'"
                     class="btn btn-outline-danger btn-sm"
                     :disabled="approving"
                     @click="setApproval('Rejected')">
               <span v-if="approving"
-                    class="spinner-border spinner-border-sm me-1">
-              </span>
+                    class="spinner-border spinner-border-sm me-1"></span>
               <i v-else class="bi bi-x-circle me-1"></i>
               Reject
             </button>
 
-            <!-- Drive open/closed status badge + toggle button -->
+            <!-- Status badge + toggle -->
             <span class="badge fs-6 px-3 py-2"
-                  :class="statusBadge(drive.status)">
+                  :class="statusBadgeClass(drive.status)">
               <i class="bi me-1"
                  :class="drive.status === 'Open'
                    ? 'bi-door-open' : 'bi-door-closed'"></i>
@@ -92,8 +84,7 @@
                     :disabled="toggling"
                     @click="toggleStatus">
               <span v-if="toggling"
-                    class="spinner-border spinner-border-sm me-1">
-              </span>
+                    class="spinner-border spinner-border-sm me-1"></span>
               <template v-else>
                 <i class="bi me-1"
                    :class="drive.status === 'Open'
@@ -138,13 +129,10 @@
                         class="badge bg-info bg-opacity-10 text-info">
                     Min CGPA {{ drive.min_cgpa }}
                   </span>
-                  <span class="badge"
-                        :class="statusBadge(drive.status)">
-                    {{ drive.status }}
-                  </span>
                 </div>
               </div>
-              <div class="text-center bg-light rounded-3 p-3">
+              <!-- Applicant count — uses local applicants array once loaded -->
+              <div class="text-center bg-light rounded-3 p-3 flex-shrink-0">
                 <div class="fs-2 fw-bold text-primary">
                   {{ drive.total_applications ?? applicants.length }}
                 </div>
@@ -154,63 +142,86 @@
           </div>
         </div>
 
-        <!-- Applicants table -->
+        <!-- ── Applicants table ─────────────────────────────────────── -->
         <div class="card border-0 shadow-sm mb-4">
           <div class="card-header bg-white border-bottom
                       d-flex justify-content-between
                       align-items-center py-3">
             <h6 class="mb-0 fw-bold">
               <i class="bi bi-people me-2 text-primary"></i>
-              Applicants ({{ applicants.length }})
+              Applicants
+              <span class="badge bg-primary bg-opacity-10 text-primary ms-1">
+                {{ applicants.length }}
+              </span>
             </h6>
-            <div class="d-flex gap-2">
-              <!-- Search applicants -->
+            <div class="d-flex gap-2 align-items-center">
+              <!-- FIX: was `drive.total_applications.length` (number has no .length) -->
               <input v-if="applicants.length"
-                     v-model="appSearch" type="text"
+                     v-model="appSearch"
+                     type="text"
                      class="form-control form-control-sm"
                      style="max-width:200px"
-                     placeholder="Search…" />
-              <!-- Refresh re-fetches the whole drive (including its relation) -->
+                     placeholder="Search name, branch…" />
               <button class="btn btn-sm btn-outline-secondary"
-                      :disabled="loading"
-                      @click="loadDrive">
-                <span v-if="loading"
+                      :disabled="loadingApps"
+                      @click="loadApplicants(true)">
+                <span v-if="loadingApps"
                       class="spinner-border spinner-border-sm"></span>
                 <i v-else class="bi bi-arrow-clockwise"></i>
               </button>
             </div>
           </div>
+
           <div class="card-body p-0">
-            <div v-if="loading" class="text-center py-4">
+            <!-- Loading applicants -->
+            <div v-if="loadingApps" class="text-center py-4">
               <div class="spinner-border spinner-border-sm text-primary"></div>
+              <p class="text-muted small mt-2">Loading applicants…</p>
             </div>
+
+            <!-- No applicants -->
             <div v-else-if="!applicants.length"
-                 class="text-center py-4 text-muted">
-              No applicants yet.
+                 class="text-center py-5 text-muted">
+              <i class="bi bi-inbox fs-1 d-block mb-2 opacity-25"></i>
+              <small>No applicants yet.</small>
             </div>
+
+            <!-- No search results -->
+            <div v-else-if="!filteredApplicants.length"
+                 class="text-center py-4 text-muted small">
+              No applicants match "{{ appSearch }}".
+            </div>
+
+            <!-- Table -->
             <div v-else class="table-responsive">
               <table class="table table-hover mb-0 align-middle">
                 <thead class="table-light">
                   <tr>
-                    <th>Student</th><th>Branch</th>
-                    <th>CGPA</th><th>Status</th>
-                    <th>Applied</th><th>Resume</th>
+                    <th>Student</th>
+                    <th>Branch</th>
+                    <th>CGPA</th>
+                    <th>Status</th>
+                    <th>Applied</th>
+                    <th>Cover Letter</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr v-for="a in filteredApplicants" :key="a.id">
                     <td>
                       <router-link
-                        :to="`/admin/students/${a.student_id}`"
-                        class="fw-semibold text-decoration-none">
-                        {{ a.student_name }}
+                        :to="`/admin/students`"
+                        class="fw-semibold text-decoration-none text-primary">
+                        {{ a.student_name || '—' }}
                       </router-link>
+                      <div class="small text-muted">
+                        {{ a.student_email || '' }}
+                      </div>
                     </td>
-                    <td>{{ a.branch || '—' }}</td>
+                    <td class="small">{{ a.student_branch || '—' }}</td>
                     <td>
-                      <span v-if="a.cgpa" class="badge"
-                            :class="cgpaBadge(a.cgpa)">
-                        {{ a.cgpa }}
+                      <span v-if="a.student_cgpa" class="badge"
+                            :class="cgpaBadge(a.student_cgpa)">
+                        {{ a.student_cgpa }}
                       </span>
                       <span v-else class="text-muted">—</span>
                     </td>
@@ -220,18 +231,12 @@
                         {{ a.status }}
                       </span>
                     </td>
-                    <td>
-                      <small>{{ fmtDate(a.applied_date) }}</small>
+                    <td class="small text-muted">
+                      {{ fmtDate(a.applied_date) }}
                     </td>
-                    <td>
-                      <a v-if="a.resume_filename"
-                         :href="`${apiBase}/api/uploads/resumes/${a.resume_filename}`"
-                         target="_blank"
-                         class="btn btn-sm btn-outline-primary">
-                        <i class="bi bi-file-earmark-pdf"></i>
-                      </a>
-                      <span v-else class="text-muted small">—</span>
-                    </td>
+                    <td class="small text-muted">
+                      {{ a.cover_letter || '—' }}
+                    </td>  
                   </tr>
                 </tbody>
               </table>
@@ -260,8 +265,7 @@
                 </template>
 
                 <h6 class="section-label mt-4">Eligible Branches</h6>
-                <div v-if="branchList.length"
-                     class="d-flex flex-wrap gap-1">
+                <div v-if="branchList.length" class="d-flex flex-wrap gap-1">
                   <span v-for="b in branchList" :key="b"
                         class="badge bg-info bg-opacity-10 text-info">
                     {{ b }}
@@ -280,15 +284,13 @@
                   <div>
                     <small class="text-muted d-block">Application Deadline</small>
                     <span class="fw-bold"
-                          :class="{
-                            'text-danger': isUrgent(drive.application_deadline)
-                          }">
+                          :class="{ 'text-danger': isUrgent(drive.application_deadline) }">
                       {{ fmtDate(drive.application_deadline) }}
                     </span>
                     <span v-if="isUrgent(drive.application_deadline)"
                           class="badge bg-danger ms-1">Urgent</span>
                   </div>
-                  <div>
+                  <div v-if="drive.drive_date">
                     <small class="text-muted d-block">Drive Date</small>
                     <span class="fw-bold">{{ fmtDate(drive.drive_date) }}</span>
                   </div>
@@ -298,9 +300,7 @@
                   </div>
                   <div>
                     <small class="text-muted d-block">Experience</small>
-                    <span>
-                      {{ drive.experience_required || 'Freshers / Any' }}
-                    </span>
+                    <span>{{ drive.experience_required || 'Freshers / Any' }}</span>
                   </div>
                 </div>
               </div>
@@ -309,10 +309,9 @@
             <div class="card border-0 shadow-sm">
               <div class="card-body p-3 d-grid">
                 <router-link
-                  :to="`/admin/companies/${drive.company_id}`"
+                  :to="`/admin/companies`"
                   class="btn btn-outline-secondary">
-                  <i class="bi bi-building me-2"></i>
-                  View Company
+                  <i class="bi bi-building me-2"></i>View Company
                 </router-link>
               </div>
             </div>
@@ -329,90 +328,94 @@ import { ref, computed, onMounted, reactive } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAdminStore }       from '@/stores/adminStore'
 
-const router  = useRouter()
-const route   = useRoute()
-const store   = useAdminStore()
+const router = useRouter()
+const route  = useRoute()
+const store  = useAdminStore()
 
-const apiBase     = import.meta.env.VITE_API_BASE_URL ?? ''
-const driveId     = computed(() => parseInt(route.params.driveId))
-const companyId   = computed(() => parseInt(route.params.companyId))
+const apiBase   = import.meta.env.VITE_API_BASE_URL ?? ''
+const driveId   = computed(() => parseInt(route.params.driveId))
+const companyId = computed(() => parseInt(route.params.companyId))
 
-const drive    = ref(null)
-const loading  = ref(true)
-const approving = ref(false)
-const toggling  = ref(false)
-const error    = ref('')
-const appSearch = ref('')
-const toast    = reactive({ show: false, type: 'success', message: '' })
+// ── State ──────────────────────────────────────────────────────
+const drive       = ref(null)
+const loading     = ref(true)
+const loadingApps = ref(false)    // ← separate flag for applicants
+const approving   = ref(false)
+const toggling    = ref(false)
+const error       = ref('')
+const appSearch   = ref('')
+const toast       = reactive({ show: false, type: 'success', message: '' })
 
-// ── Derived ───────────────────────────────────────────────────────────────
+// FIX: applicants live in their own ref, not nested inside drive
+// drive.total_applications is an integer count — it has no `.length`
+const applicants = ref([])
 
-// Applicants come directly from the drive relation — no separate store slice needed.
-// If your backend returns the field under a different name (e.g. "applicants"),
-// update the key below accordingly.
-const applicants = computed(() => drive.value?.applications ?? [])
-
+// ── Derived ────────────────────────────────────────────────────
 const filteredApplicants = computed(() => {
   if (!appSearch.value) return applicants.value
   const q = appSearch.value.toLowerCase()
   return applicants.value.filter(a =>
     a.student_name?.toLowerCase().includes(q) ||
+    a.student_email?.toLowerCase().includes(q) ||
     a.branch?.toLowerCase().includes(q)
   )
 })
 
 const skillList = computed(() =>
-  drive.value?.skills_required
-    ? drive.value.skills_required
-        .split(',').map(s => s.trim()).filter(Boolean)
-    : []
+  (drive.value?.skills_required || '')
+    .split(',').map(s => s.trim()).filter(Boolean)
 )
 
 const branchList = computed(() =>
-  drive.value?.eligible_branches
-    ? drive.value.eligible_branches
-        .split(',').map(b => b.trim()).filter(Boolean)
-    : []
+  (drive.value?.eligible_branches || '')
+    .split(',').map(b => b.trim()).filter(Boolean)
 )
 
-// ── Load ──────────────────────────────────────────────────────────────────
+// ── Load drive ─────────────────────────────────────────────────
 async function loadDrive() {
-  loading.value = true; error.value = ''
+  loading.value = true
+  error.value   = ''
   try {
     const result = await store.fetchDrive(driveId.value, companyId.value)
     if (!result) { error.value = 'Drive not found.'; return }
-
-    // structuredClone breaks the shared reference between drive.value and
-    // the object inside store.drives[]. Without this, patchDrive's _patch()
-    // call does Object.assign(storeObject, serverResponse) which mutates
-    // drive.value in place — overwriting fields like `status` with whatever
-    // the full server response returned, before the component can do its
-    // own surgical merge.
     drive.value = structuredClone(result)
   } catch (e) {
-    error.value = e?.message ?? 'Failed to load.'
+    error.value = e?.message ?? 'Failed to load drive.'
   } finally {
     loading.value = false
   }
 }
 
-// ── Approval ──────────────────────────────────────────────────────────────
+// ── Load applicants separately ─────────────────────────────────
+// Calls: GET /admin/drives/:driveId/applicants
+// Store action: store.fetchDriveApplicants(driveId)
+// Expected shape per item:
+//   { id, student_id, student_name, student_email, branch, cgpa,
+//     status, applied_date, resume_filename }
+async function loadApplicants(force = false) {
+  loadingApps.value = true
+  try {
+    const data = await store.fetchDriveApplicants(driveId.value, force)
+    applicants.value = data ?? []
+    console.log('Applicants loaded:', applicants.value)
+  } catch (e) {
+    showToast('danger', e?.message ?? 'Failed to load applicants.')
+  } finally {
+    loadingApps.value = false
+  }
+}
+
+
+// ── Admin actions ──────────────────────────────────────────────
 async function setApproval(status) {
   if (status === 'Rejected' && !confirm('Reject this drive?')) return
   approving.value = true
   try {
-    // Diagnostic: confirm the IDs before the request is sent.
-    // If companyId prints as NaN here, your router param name is mismatched.
-    console.log('[setApproval] driveId:', driveId.value,
-                'companyId:', companyId.value, 'payload:', { admin_approval_status: status })
-
     await store.patchDrive(
       driveId.value,
       { admin_approval_status: status },
-      companyId.value
+      companyId.value,
     )
-    // Only update the one field we patched — spreading the full server response
-    // would overwrite unrelated fields like `status` with stale DB values.
     drive.value = { ...drive.value, admin_approval_status: status }
     showToast('success', `Drive ${status.toLowerCase()}.`)
   } catch (e) {
@@ -422,18 +425,11 @@ async function setApproval(status) {
   }
 }
 
-// ── Toggle open / closed ──────────────────────────────────────────────────
-// Same pattern — just patching the status field via patchDrive.
 async function toggleStatus() {
   const newStatus = drive.value.status === 'Open' ? 'Closed' : 'Open'
   toggling.value = true
   try {
-    const updated = await store.patchDrive(
-      driveId.value,
-      { status: newStatus },
-      companyId.value
-    )
-    // Only apply the toggled field — same reasoning as setApproval above.
+    await store.patchDrive(driveId.value, { status: newStatus }, companyId.value)
     drive.value = { ...drive.value, status: newStatus }
     showToast('success', `Drive is now ${newStatus}.`)
   } catch (e) {
@@ -443,21 +439,20 @@ async function toggleStatus() {
   }
 }
 
-// ── Delete ────────────────────────────────────────────────────────────────
 async function confirmDelete() {
   if (!confirm('Permanently delete this drive?')) return
   try {
     await store.deleteDrive(driveId.value, companyId.value)
-    router.replace('/admin')
+    router.replace(`/admin/companies/${companyId.value}`)
   } catch (e) {
     showToast('danger', e?.message ?? 'Delete failed.')
   }
 }
 
-// ── Utilities ─────────────────────────────────────────────────────────────
+// ── Utilities ──────────────────────────────────────────────────
 function showToast(type, message, ms = 4000) {
-  toast.show = true; toast.type = type; toast.message = message
-  setTimeout(() => { toast.show = false }, ms)
+  Object.assign(toast, { show: true, type, message })
+  setTimeout(() => (toast.show = false), ms)
 }
 function fmtDate(d) {
   return d
@@ -477,17 +472,13 @@ function isUrgent(d) {
   const diff = new Date(d) - new Date()
   return diff > 0 && diff < 3 * 86_400_000
 }
-function statusBadge(s) {
-  return {
-    Open: 'bg-success', Closed: 'bg-secondary', Completed: 'bg-primary',
-  }[s] ?? 'bg-secondary'
+function statusBadgeClass(s) {
+  return { Open: 'bg-success', Closed: 'bg-secondary', Completed: 'bg-primary' }[s]
+    ?? 'bg-secondary'
 }
 function approvalBadgeClass(s) {
-  return {
-    Approved: 'bg-success',
-    Rejected:  'bg-danger',
-    Pending:   'bg-warning text-dark',
-  }[s] ?? 'bg-secondary'
+  return { Approved: 'bg-success', Rejected: 'bg-danger', Pending: 'bg-warning text-dark' }[s]
+    ?? 'bg-secondary'
 }
 function appStatusBadge(s) {
   return {
@@ -496,12 +487,13 @@ function appStatusBadge(s) {
   }[s] ?? 'bg-secondary'
 }
 function cgpaBadge(cgpa) {
-  return cgpa >= 8
-    ? 'bg-success' : cgpa >= 6
-    ? 'bg-warning text-dark' : 'bg-danger'
+  return cgpa >= 8 ? 'bg-success' : cgpa >= 6 ? 'bg-warning text-dark' : 'bg-danger'
 }
 
-onMounted(loadDrive)
+onMounted(async () => {
+  await loadDrive()
+  loadApplicants()   // non-blocking — loads after drive renders
+})
 </script>
 
 <style scoped>
@@ -512,5 +504,5 @@ onMounted(loadDrive)
   margin-bottom: 1rem;
 }
 .fade-enter-active, .fade-leave-active { transition: opacity .3s; }
-.fade-enter-from, .fade-leave-to { opacity: 0; }
+.fade-enter-from, .fade-leave-to       { opacity: 0; }
 </style>

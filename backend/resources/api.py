@@ -12,8 +12,8 @@ from models import (
     Company, User, Interview, Application,
     PlacementDrive, Placement, Student, db,
 )
-from cache import cache
-# FIX 1: added timezone to the import — was missing, caused NameError on datetime.now(timezone.utc)
+
+from extensions import cache
 from datetime import datetime, timezone
 import os
 import csv
@@ -50,6 +50,7 @@ class StudentResource(Resource):
         if not s:
             return {'message': 'Student not found'}, 404
         cache.delete_memoized(StudentResource.get, StudentResource, student_id)
+        cache.delete("admin_students")
         return marshal(s, student_fields), 200
 
     @auth_required('token')
@@ -59,6 +60,12 @@ class StudentResource(Resource):
         if not s:
             return {'message': 'Student not found'}, 404
         cache.delete_memoized(StudentResource.get, StudentResource, student_id)
+        # FIX: bust the admin list cache so block/unblock is immediately
+        # reflected when the frontend re-fetches /admin/students.
+        # Previously only the per-student detail cache was cleared, leaving
+        # the StudentListResource response stale for up to TTL_SHORT (5 min),
+        # which caused the frontend to show "Active" again after any refresh.
+        cache.delete("admin_students")
         return marshal(s, student_fields), 200
 
     @auth_required('token')
@@ -116,6 +123,10 @@ class StudentApplyResource(Resource):
     @auth_required('token')
     @roles_required('student')
     def post(self, student_id, drive_id):
+        drive= PlacementDrive.query.get(drive_id)
+        student= Student.query.get(student_id)
+        if student.cgpa < drive.min_cgpa:
+            return {'message': 'CGPA does not meet the minimum requirement'}, 400
         app, err = StudentService.apply(
             student_id, drive_id, _json().get('cover_letter'))
         if not app:
@@ -170,6 +181,8 @@ class CompanyUpdateSelectionResource(Resource):
 
         application.status        = new_status
         application.reviewed_date = datetime.utcnow()
+        joining_date_str = data.get('joining_date')
+        joining_date = datetime.strptime(joining_date_str, '%Y-%m-%d').date() if joining_date_str else None
 
         if new_status == 'Selected' and not Placement.query.filter_by(
                 application_id=application_id).first():
@@ -179,6 +192,8 @@ class CompanyUpdateSelectionResource(Resource):
                 application_id=application_id,
                 position_title=application.drive.title,
                 salary=data.get('salary', application.drive.salary_max),
+                joining_date=joining_date,
+                feedback=data.get('feedback'),
                 currency=application.drive.currency,
                 status='Offered',
             ))
@@ -186,60 +201,116 @@ class CompanyUpdateSelectionResource(Resource):
         db.session.commit()
         return marshal(application, application_fields), 200
     
+
+
+class StudentPlacementStatusResource(Resource):
+    """
+    PATCH /api/student/<student_id>/placements/<placement_id>
+    Student accepts or declines an offer — both are fully reversible.
+
+    Allowed transitions (any direction):
+        Offered  ↔  Joined
+        Offered  ↔  Declined
+        Joined   →  Declined
+        Declined →  Joined
+
+    Payload:  { "status": "Joined" | "Declined" | "Offered" }
+    """
+
+    @auth_required('token')
+    @roles_required('student')
+    def put(self, student_id, placement_id):
+        data   = _json()
+        status = data.get('status')
+
+        ALLOWED = ('Offered', 'Joined', 'Declined')
+        if status not in ALLOWED:
+            return {
+                'message': f'status must be one of: {", ".join(ALLOWED)}'
+            }, 400
+
+        placement = Placement.query.filter_by(
+            id=placement_id,
+            student_id=student_id,
+        ).first()
+
+        if not placement:
+            return {'message': 'Placement not found'}, 404
+
+        # Reversible — no guard on current status, any → any is allowed
+        placement.status = status
+
+        # Optional joining date when accepting
+        if status == 'Joined' and data.get('joining_date'):
+            try:
+                placement.joining_date = datetime.fromisoformat(data['joining_date'])
+            except ValueError:
+                return {'message': 'Invalid joining_date format. Use ISO 8601.'}, 400
+
+        db.session.commit()
+
+        # Bust placement cache so next GET reflects new status
+        cache.delete_memoized(
+            StudentPlacementHistoryResource.get,
+            StudentPlacementHistoryResource,
+            student_id,
+        )
+
+        return marshal(placement, placement_fields), 200
+
+
 # ─── Student: CSV Export ──────────────────────────────────────────────────────
 
 class StudentCSVExportResource(Resource):
+    """
+    GET /api/student/<student_id>/export/csv
+    Streams the student's full application history as a CSV download.
+    No Celery, no polling — synchronous, same pattern as AdminExportDataResource.
+    """
 
     @auth_required('token')
     @roles_required('student')
-    def post(self, student_id):
-        from tasks import export_applications_csv
-        task = export_applications_csv.delay(student_id)
-        return {'task_id': task.id, 'status': 'PENDING'}, 202
+    def get(self, student_id):
+        student = Student.query.get(student_id)
+        if not student:
+            return {'message': 'Student not found.'}, 404
 
-
-class StudentCSVExportStatusResource(Resource):
-
-    @auth_required('token')
-    @roles_required('student')
-    def get(self, student_id, task_id):
-        from celery.result import AsyncResult
-        task = AsyncResult(task_id)
-        if task.state == 'PENDING':
-            return {'status': 'PENDING', 'progress': 0}, 200
-        if task.state == 'SUCCESS':
-            result = task.result
-            return {
-                'status':       'SUCCESS',
-                'filename':     result['filename'],
-                'record_count': result['record_count'],
-                'download_url': (
-                    f"/api/student/{student_id}"
-                    f"/export-csv/{result['filename']}/download"
-                ),
-            }, 200
-        if task.state == 'FAILURE':
-            return {'status': 'FAILURE', 'error': str(task.info)}, 200
-        return {'status': task.state}, 200
-
-
-class StudentCSVDownloadResource(Resource):
-
-    @auth_required('token')
-    @roles_required('student')
-    def get(self, student_id, filename):
-        if '..' in filename or '/' in filename:
-            return {'message': 'Invalid filename'}, 400
-        filepath = f'/tmp/exports/{filename}'
-        if not os.path.exists(filepath):
-            return {'message': 'File not found or expired'}, 404
-        return send_file(
-            filepath,
-            as_attachment=True,
-            download_name=filename,
-            mimetype='text/csv',
+        applications = (
+            Application.query
+            .filter_by(student_id=student_id)
+            .order_by(Application.applied_date.desc())
+            .all()
         )
 
+        output = StringIO()
+        writer = csv.writer(output)
+        writer.writerow([
+            'Application ID', 'Company', 'Drive Title',
+            'Job Type', 'Location', 'Salary (Max)',
+            'Applied Date', 'Status', 'Reviewed Date', 'Notes',
+        ])
+
+        for a in applications:
+            d = a.drive
+            writer.writerow([
+                a.id,
+                d.company.company_name if d and d.company else 'N/A',
+                d.title    if d else 'N/A',
+                d.job_type if d else 'N/A',
+                d.location if d else 'N/A',
+                d.salary_max if d else 'N/A',
+                a.applied_date.strftime('%Y-%m-%d %H:%M')  if a.applied_date  else '',
+                a.status,
+                a.reviewed_date.strftime('%Y-%m-%d %H:%M') if a.reviewed_date else '',
+                a.notes or '',
+            ])
+
+        response = make_response(output.getvalue())
+        response.headers['Content-Type']        = 'text/csv; charset=utf-8'
+        response.headers['Content-Disposition'] = (
+            f'attachment; filename=applications_{student_id}.csv'
+        )
+        return response
 
 # ─── Company ──────────────────────────────────────────────────────────────────
 
@@ -275,7 +346,7 @@ class CompanyResource(Resource):
         return marshal(c, company_fields), 200
 
     @auth_required('token')
-    @roles_required('company')
+    @roles_accepted('company', 'admin')
     def delete(self, company_id):
         ok, err = CompanyService.delete(company_id)
         if ok:
@@ -395,6 +466,12 @@ class CompanyDriveApplicantsResource(Resource):
             return {'message': err}, 404
         return marshal(apps, application_fields), 200
 
+class DriveApplicantsAPI(Resource):
+    def get(self, drive_id):
+        applications = Application.query.filter_by(
+            drive_id=drive_id
+        ).all()
+        return marshal(applications, application_fields), 200
 
 class CompanyDriveApplicantResource(Resource):
 
@@ -416,6 +493,81 @@ class CompanyDriveApplicantResource(Resource):
         return marshal(app, application_fields), 200
 
 
+class CompanyDriveExportResource(Resource):
+    """
+    GET /api/company/drives/<int:drive_id>/export/csv
+    Download all applicants for a drive as a CSV file.
+    Only the owning company (or admin) can access this.
+    """
+
+    @auth_required('token')
+    @roles_accepted('company', 'admin')
+    def get(self, drive_id):
+        from flask_security import current_user
+
+        drive = PlacementDrive.query.get(drive_id)
+        if not drive:
+            return {'message': 'Drive not found.'}, 404
+
+        # Companies can only export their own drives
+        if 'admin' not in [r.name for r in current_user.roles]:
+            company = Company.query.filter_by(user_id=current_user.id).first()
+            if not company or drive.company_id != company.id:
+                return {'message': 'Access denied.'}, 403
+
+        applications = (
+            Application.query
+            .filter_by(drive_id=drive_id)
+            .order_by(Application.applied_date.desc())
+            .all()
+        )
+
+        output = StringIO()
+        writer = csv.writer(output)
+        writer.writerow([
+            'Application ID',
+            'Student Name',
+            'Email',
+            'Phone',
+            'Roll Number',
+            'Branch',
+            'CGPA',
+            'Graduation Year',
+            'Skills',
+            'Applied Date',
+            'Status',
+            'Reviewed Date',
+            'Recruiter Notes',
+        ])
+
+        for a in applications:
+            s = a.student
+            u = s.user if s else None
+            writer.writerow([
+                a.id,
+                u.name              if u else 'N/A',
+                u.email             if u else 'N/A',
+                s.phone             if s else 'N/A',
+                s.roll_number       if s else 'N/A',
+                s.branch            if s else 'N/A',
+                s.cgpa              if s else 'N/A',
+                s.graduation_year   if s else 'N/A',
+                s.skills            if s else 'N/A',
+                a.applied_date.strftime('%Y-%m-%d %H:%M')  if a.applied_date  else '',
+                a.status,
+                a.reviewed_date.strftime('%Y-%m-%d %H:%M') if a.reviewed_date else '',
+                a.notes or '',
+            ])
+
+        safe_title = (drive.title or f'drive_{drive_id}') \
+            .replace(' ', '_') \
+            .replace('/', '-')[:40]
+        filename = f'applicants_{safe_title}_{drive_id}.csv'
+
+        response = make_response(output.getvalue())
+        response.headers['Content-Type']        = 'text/csv; charset=utf-8'
+        response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
+        return response
 # ─── Company: Interview ───────────────────────────────────────────────────────
 
 class CompanyInterviewResource(Resource):
@@ -450,7 +602,6 @@ class CompanyInterviewResource(Resource):
 
         interview = Interview(
             application_id=application_id,
-            # FIX 2: drive_id, company_id, student_id were missing — NOT NULL columns
             drive_id=application.drive_id,
             company_id=company_id,
             student_id=application.student_id,
@@ -466,7 +617,6 @@ class CompanyInterviewResource(Resource):
             application.status = 'Shortlisted'
         db.session.commit()
         cache.delete_memoized(StudentApplicationsResource.get, StudentApplicationsResource, application.student_id)
-        # FIX 3: was missing return — Flask returned None → 500 on every schedule
         return marshal(interview, interview_fields), 201
 
     @auth_required('token')
@@ -482,10 +632,13 @@ class CompanyInterviewResource(Resource):
             return {'message': 'No interview found. Use POST to schedule first.'}, 404
 
         interview = application.interview
+        if data.get("status") == "completed":
+            interview.status = "completed"
         for field in ('interview_type', 'interview_mode', 'interview_link',
                       'instructions', 'interviewer', 'feedback'):
             if field in data:
                 setattr(interview, field, data[field])
+        
         if data.get('interview_date'):
             interview.interview_date = datetime.fromisoformat(data['interview_date'])
         interview.updated_at = datetime.utcnow()
@@ -720,12 +873,6 @@ class ResumeServeResource(Resource):
         return send_from_directory(upload_dir, filename, as_attachment=False)
 
 # ─── Offer Letter Upload ───────────────────────────────────────────────────────
-# POST /api/upload-offer
-# Called by the company recruiter after html2pdf.js captures the preview.
-# Saves the PDF, updates the Placement record, returns the filename + url.
-#
-# Register:
-#   api.add_resource(OfferLetterUploadResource, '/api/upload-offer')
 
 class OfferLetterUploadResource(Resource):
 
@@ -733,7 +880,6 @@ class OfferLetterUploadResource(Resource):
     @roles_accepted('company', 'admin')
     def post(self):
 
-        # ── 1. Validate form fields ───────────────────────────────────────────
         student_id     = request.form.get('student_id',     '').strip()
         application_id = request.form.get('application_id', '').strip()
         offer_file     = request.files.get('offer_letter')
@@ -745,26 +891,19 @@ class OfferLetterUploadResource(Resource):
         if not offer_file:
             return {'message': 'offer_letter file is required.'}, 400
 
-        # ── 2. Deterministic filename keyed on application_id ─────────────────
-        # Using application_id as the primary key means one student with
-        # multiple placements gets a distinct file per application —
-        # no collisions, easy to find later.
         filename = f"offer_{application_id}_{student_id}.pdf"
 
-        # ── 3. Save file to disk ──────────────────────────────────────────────
         upload_folder = os.path.join(current_app.root_path, 'uploads', 'offers')
         os.makedirs(upload_folder, exist_ok=True)
 
         filepath = os.path.join(upload_folder, filename)
-        offer_file.save(filepath)   # uses our filename, NOT offer_file.filename
+        offer_file.save(filepath)
 
-        # ── 4. Update the Placement record in the database ────────────────────
         placement = Placement.query.filter_by(
             application_id=int(application_id)
         ).first()
 
         if not placement:
-            # Remove the orphan file we just saved
             if os.path.exists(filepath):
                 os.remove(filepath)
             return {
@@ -779,7 +918,6 @@ class OfferLetterUploadResource(Resource):
         placement.offer_letter_generated_date = datetime.utcnow()
         db.session.commit()
 
-        # ── 5. Return the saved details to the frontend ───────────────────────
         return {
             'message':               'Offer letter saved successfully.',
             'offer_letter_filename':  filename,
@@ -788,12 +926,6 @@ class OfferLetterUploadResource(Resource):
 
 
 # ─── Offer Letter Download ─────────────────────────────────────────────────────
-# GET /api/uploads/offers/<filename>
-# Serves the PDF to any authenticated user (student, company, admin).
-# The student sees this via PlacementHistory → View Offer Letter button.
-#
-# Register:
-#   api.add_resource(OfferLetterDownloadResource, '/api/uploads/offers/<string:filename>')
 
 class OfferLetterDownloadResource(Resource):
 
@@ -801,7 +933,6 @@ class OfferLetterDownloadResource(Resource):
     @roles_accepted('student', 'company', 'admin')
     def get(self, filename):
 
-        # Block path traversal attempts
         if '..' in filename or '/' in filename or '\\' in filename:
             return {'message': 'Invalid filename.'}, 400
 
@@ -815,5 +946,5 @@ class OfferLetterDownloadResource(Resource):
             upload_folder,
             filename,
             mimetype='application/pdf',
-            as_attachment=False   # False → browser renders inline in new tab
+            as_attachment=False
         )
