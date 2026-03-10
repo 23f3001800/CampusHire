@@ -15,6 +15,7 @@ export const useCompanyStore = defineStore('company', {
     loadingProfile: false,
     loadingDrives:  false,
     loadingApps:    false,
+    exportLoading:  false,
     error:          null,
     _ts:            {},
   }),
@@ -165,12 +166,15 @@ export const useCompanyStore = defineStore('company', {
     },
 
     // PATCH /company/:id/drives/:did → returns updated drive_fields directly
-    async toggleDriveStatus(companyId, driveId) {
+    async toggleDriveStatus(companyId, driveId, status) {
       const updated = await api.patch(
-        `/company/${companyId}/drives/${driveId}`
+        `/company/${companyId}/drives/${driveId}`,
+        { status }   // send JSON
       )
+
       const i = this.drives.findIndex(d => d.id === driveId)
       if (i !== -1) this.drives[i] = updated
+
       return updated
     },
 
@@ -239,7 +243,19 @@ export const useCompanyStore = defineStore('company', {
         throw e
       }
     },
-
+    async completeInterview(companyId, applicationId, data) {
+      const res = await api.put(
+        `/company/${companyId}/applications/${applicationId}/interview`,
+        data
+      )
+      // Store interview in cache
+      this.interviews = {
+        ...this.interviews,
+        [applicationId]: res,
+      }
+      return res
+    },
+    
     // POST /company/:id/applications/:aid/interview
     // Body: { interview_type, interview_mode, interview_date (ISO),
     //         interview_link?, interviewer?, instructions? }
@@ -368,23 +384,13 @@ export const useCompanyStore = defineStore('company', {
       if (i !== -1) this.applicants[driveId][i] = updated
     },
 
-    async exportData(type = 'students') {
+    async exportApplicationsCSV(driveId) {
       this.exportLoading = true
       try {
-        const token = localStorage.getItem('token')
-        const base  = import.meta.env.VITE_API_BASE_URL ?? ''
-        const res   = await fetch(
-          `${base}/admin/export?type=${type}`,
-          { headers: { 'Authentication-Token': token } }
+        await api.download(
+          `/company/drives/${driveId}/export/csv`,
+          `applications_${driveId}.csv`
         )
-        if (!res.ok) throw new Error(`Export failed (${res.status})`)
-        const blob = await res.blob()
-        const url  = URL.createObjectURL(blob)
-        const a    = document.createElement('a')
-        a.href     = url
-        a.download = `${type}-${new Date().toISOString().slice(0, 10)}.csv`
-        a.click()
-        URL.revokeObjectURL(url)
       } catch (e) {
         this.error = e.message
         throw e

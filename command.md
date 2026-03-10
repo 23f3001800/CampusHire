@@ -42,8 +42,8 @@ git pull origin main --rebase
 
  sudo systemctl stop redis
 
-celery -A celery_app worker --loglevel=info
-celery -A celery_app beat --loglevel=info
+celery -A celery_worker worker --loglevel=info
+celery -A celery_worker.celery beat --loglevel=info --dry-run
 
 
 
@@ -59,3 +59,23 @@ rules = [str(r) for r in app.url_map.iter_rules() if 'offer' in str(r).lower()]
 print('\n'.join(rules) or 'No offer routes found')
 "
 
+from tasks import generate_monthly_report, generate_company_monthly_reports
+generate_monthly_report.delay()
+generate_company_monthly_reports.delay()
+
+
+
+
+
+## how to run the application 
+for backend and frontend
+
+cd backend
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+python app.py
+
+cd frontend
+npm install
+npm run dev

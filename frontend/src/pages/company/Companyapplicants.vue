@@ -56,6 +56,10 @@
               <i class="bi bi-building me-1"></i>{{ store.companyName }}
             </small>
           </div>
+          <button class="btn btn-success btn-sm" @click="exportCSV(drive.id)">
+            <i class="bi bi-file-earmark-spreadsheet me-1"></i>
+            Export CSV
+          </button>
         </div>
 
         <!-- Pipeline chips -->
@@ -241,7 +245,7 @@
                         <i class="bi bi-telephone me-1"></i>{{ student.phone }}
                       </span>
                     </p>
-                    <div class="d-flex gap-1 flex-wrap">
+                    <div class="d-flex gap-1 flex-wrap mb-2">
                       <span v-if="student.branch"
                             class="badge bg-primary bg-opacity-10 text-primary">
                         {{ student.branch }}
@@ -257,6 +261,29 @@
                       <span v-if="student.degree"
                             class="badge bg-secondary bg-opacity-10 text-secondary">
                         {{ student.degree }}
+                      </span>
+                    </div>
+
+                    <!-- Social links — always visible in header -->
+                    <div class="d-flex gap-2 flex-wrap align-items-center">
+                      <a v-if="student.linkedin_url"
+                         :href="student.linkedin_url" target="_blank"
+                         class="social-pill social-linkedin">
+                        <i class="bi bi-linkedin me-1"></i>LinkedIn
+                      </a>
+                      <a v-if="student.github_url"
+                         :href="student.github_url" target="_blank"
+                         class="social-pill social-github">
+                        <i class="bi bi-github me-1"></i>GitHub
+                      </a>
+                      <a v-if="student.portfolio_url"
+                         :href="student.portfolio_url" target="_blank"
+                         class="social-pill social-portfolio">
+                        <i class="bi bi-globe2 me-1"></i>Portfolio
+                      </a>
+                      <span v-if="!student.linkedin_url && !student.github_url && !student.portfolio_url"
+                            class="text-muted small fst-italic">
+                        <i class="bi bi-link-45deg me-1"></i>No social links added
                       </span>
                     </div>
                   </div>
@@ -569,13 +596,38 @@
                         </div>
                       </li>
                     </ul>
-                    <div class="mt-3 pt-3 border-top">
-                      <button class="btn btn-sm btn-outline-danger w-100"
+                    <div class="mt-3 pt-3 border-top d-flex flex-column gap-2">
+
+                      <!-- Completed state banner -->
+                      <div v-if="interview.status === 'Completed'"
+                           class="interview-done-banner">
+                        <i class="bi bi-patch-check-fill me-2"></i>
+                        Interview marked as completed
+                      </div>
+
+                      <!-- Mark as Completed -->
+                      <button v-if="interview.status !== 'Completed'"
+                              class="btn btn-sm btn-success w-100"
                               :disabled="actionPending"
-                              @click="doRevokeInterview">
-                        <i class="bi bi-calendar-x me-1"></i>
-                        Revoke Interview
+                              @click="doCompleteInterview">
+                        <span v-if="actionPending"
+                              class="spinner-border spinner-border-sm me-1"></span>
+                        <i v-else class="bi bi-patch-check me-1"></i>
+                        Mark Interview as Completed
                       </button>
+
+                      <div class="d-flex gap-2">
+                        <button class="btn btn-sm btn-outline-primary flex-fill"
+                                :disabled="actionPending"
+                                @click="openInterviewModal">
+                          <i class="bi bi-pencil me-1"></i>Reschedule
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger flex-fill"
+                                :disabled="actionPending"
+                                @click="doRevokeInterview">
+                          <i class="bi bi-calendar-x me-1"></i>Revoke
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -602,33 +654,7 @@
                   </div>
                 </div>
 
-                <!-- Links -->
-                <div v-if="student.linkedin_url || student.github_url
-                            || student.portfolio_url"
-                     class="card border-0 shadow-sm">
-                  <div class="card-header bg-white border-bottom py-3">
-                    <h6 class="mb-0 fw-bold">
-                      <i class="bi bi-link-45deg me-2 text-info"></i>Links
-                    </h6>
-                  </div>
-                  <div class="card-body p-3 d-flex flex-column gap-2">
-                    <a v-if="student.linkedin_url"
-                       :href="student.linkedin_url" target="_blank"
-                       class="btn btn-outline-primary btn-sm">
-                      <i class="bi bi-linkedin me-1"></i>LinkedIn
-                    </a>
-                    <a v-if="student.github_url"
-                       :href="student.github_url" target="_blank"
-                       class="btn btn-outline-dark btn-sm">
-                      <i class="bi bi-github me-1"></i>GitHub
-                    </a>
-                    <a v-if="student.portfolio_url"
-                       :href="student.portfolio_url" target="_blank"
-                       class="btn btn-outline-secondary btn-sm">
-                      <i class="bi bi-globe2 me-1"></i>Portfolio
-                    </a>
-                  </div>
-                </div>
+
 
               </div>
             </div>
@@ -765,9 +791,13 @@
                   Offered Salary (INR)
                 </label>
                 <input class="form-control form-control-sm"
-                       type="number" min="0"
-                       v-model.number="selectionForm.salary"
-                       placeholder="e.g. 800000" />
+                      type="number" min="0"
+                      v-model.number="selectionForm.salary"
+                      placeholder="e.g. 800000" />
+                <!-- Live Preview -->
+                <small class="text-muted mt-1 d-block">
+                  Preview: ₹ {{ formattedSalary }}
+                </small>
               </div>
               <div class="col-md-6">
                 <label class="form-label fw-semibold small">
@@ -776,6 +806,14 @@
                 <input class="form-control form-control-sm"
                        type="date"
                        v-model="selectionForm.joining_date" />
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold small">
+                   feedback
+                </label>
+                <input class="form-control form-control-sm"
+                       type="text"
+                       v-model="selectionForm.feedback" />
               </div>
             </template>
             <div class="col-12">
@@ -1091,6 +1129,7 @@ const hasOfferLetter = computed(() =>
   !!selectedApp.value?.placement?.offer_letter_url
 )
 
+
 const skillList = computed(() =>
   (student.value?.skills || '').split(',')
     .map(s => s.trim()).filter(Boolean)
@@ -1111,7 +1150,7 @@ const interviewForm  = reactive({
   interviewer: '', instructions: '',
 })
 const selectionModal = reactive({ show: false, saving: false, status: 'Selected' })
-const selectionForm  = reactive({ salary: null, joining_date: '', notes: '' })
+const selectionForm  = reactive({ salary: null, joining_date: '', notes: '' , feedback: ''})
 const notesModal     = reactive({ show: false, saving: false, text: '' })
 const offerModal     = reactive({ show: false, step: 1 })
 const offerSaving    = ref(false)
@@ -1155,6 +1194,13 @@ const pipelineStats = computed(() => {
     { key: 'Shortlisted', label: 'Shortlisted', value: count('Shortlisted'), color: 'text-info'    },
     { key: 'Selected',    label: 'Selected',    value: count('Selected'),    color: 'text-success' },
   ]
+})
+
+const formattedSalary = computed(() => {
+  const salary = selectionForm.salary
+  if (!salary) return '-' // fallback if empty or 0
+  // Format number in Indian notation
+  return new Intl.NumberFormat('en-IN').format(salary)
 })
 
 // ── Load ──────────────────────────────────────────────────────
@@ -1233,6 +1279,19 @@ async function doRevokeInterview() {
   } finally { actionPending.value = false }
 }
 
+async function doCompleteInterview() {
+  if (!confirm('Mark this interview as completed?')) return
+  actionPending.value = true
+  try {
+    await store.completeInterview(cid.value, selectedAppId.value, {
+  status: "completed"
+  })
+    showToast('success', `Interview marked as completed for ${student.value?.name}.`)
+  } catch (e) {
+    showToast('danger', e?.message ?? 'Failed to mark as completed.')
+  } finally { actionPending.value = false }
+}
+
 // ── Interview modal ───────────────────────────────────────────
 function openInterviewModal() {
   const iv = interview.value
@@ -1278,6 +1337,7 @@ function openSelectionModal(status) {
   selectionForm.salary       = null
   selectionForm.joining_date = ''
   selectionForm.notes        = ''
+  selectionForm.feedback     = ''
   selectionModal.show        = true
 }
 
@@ -1290,6 +1350,7 @@ async function submitSelection() {
       ...(selectionModal.status === 'Selected' && {
         ...(selectionForm.salary       && { salary:       selectionForm.salary }),
         ...(selectionForm.joining_date && { joining_date: selectionForm.joining_date }),
+        ...(selectionForm.feedback     && { feedback:     selectionForm.feedback }),
       }),
     }
     await store.finalizeSelection(cid.value, selectedAppId.value, payload)
@@ -1392,7 +1453,7 @@ async function viewResume() {
   resumeBusy.value = true
   try {
     const res = await fetch(
-      `${apiBase}/api/uploads/resumes/${student.value.resume_filename}`,
+      `${apiBase}/uploads/resumes/${student.value.resume_filename}`,
       { headers: { 'Authentication-Token': localStorage.getItem('token') } }
     )
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
@@ -1405,7 +1466,14 @@ async function viewResume() {
     showToast('danger', e?.message ?? 'Failed to load resume.')
   } finally { resumeBusy.value = false }
 }
-
+async function exportCSV(driveId) {
+  try {
+    await store.exportApplicationsCSV(driveId)
+    showToast('success', 'CSV downloaded successfully.')
+  } catch {
+    showToast('danger', store.csvError || 'Export failed.')
+  }
+}
 // ── Helpers ───────────────────────────────────────────────────
 function initials(name) {
   return (name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
@@ -1448,7 +1516,7 @@ onMounted(() => loadApplicants())
 .page-root {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  height: 120vh;
   overflow: hidden;
   background: #f4f6fb;
 }
@@ -1615,6 +1683,45 @@ onMounted(() => loadApplicants())
   .master-detail { flex-direction: column; overflow: visible; }
   .list-panel  { width: 100%; border-right: none; border-bottom: 1px solid #dee2e6; }
   .detail-panel { overflow: visible; }
+}
+
+/* ── Social pills ───────────────────────────────────────────── */
+.social-pill {
+  display: inline-flex; align-items: center;
+  padding: .28rem .75rem; border-radius: 20px;
+  font-size: .75rem; font-weight: 600;
+  text-decoration: none; transition: all .15s;
+  border: 1.5px solid transparent;
+}
+.social-linkedin {
+  background: #e8f0fe; color: #0a66c2;
+  border-color: #c5d8f8;
+}
+.social-linkedin:hover {
+  background: #0a66c2; color: #fff;
+}
+.social-github {
+  background: #f0f0f0; color: #24292e;
+  border-color: #d0d0d0;
+}
+.social-github:hover {
+  background: #24292e; color: #fff;
+}
+.social-portfolio {
+  background: #e8f5e9; color: #2e7d32;
+  border-color: #c8e6c9;
+}
+.social-portfolio:hover {
+  background: #2e7d32; color: #fff;
+}
+
+/* ── Interview completed banner ─────────────────────────────── */
+.interview-done-banner {
+  background: #d1fae5; color: #065f46;
+  border: 1px solid #6ee7b7;
+  border-radius: 8px; padding: .5rem .75rem;
+  font-size: .8rem; font-weight: 600;
+  display: flex; align-items: center;
 }
 
 /* ── Fade transition ────────────────────────────────────────── */

@@ -51,13 +51,13 @@
             <label class="form-label fw-semibold small">Branch</label>
             <select v-model="student.branch" class="form-select panel-input">
               <option value="">Select</option>
-              <option value="CSE">Computer Science</option>
-              <option value="DS">Data Science</option>
-              <option value="ECE">Electronics and Communication</option>
-              <option value="ME">Mechanical</option>
-              <option value="Civil">Civil Engineering</option>
-              <option value="EE">Electrical Engineering</option>
-              <option value="IT">Information Technology</option>
+              <option value="Computer Science">Computer Science</option>
+              <option value="Data Science">Data Science</option>
+              <option value="Electronics and Communication">Electronics and Communication</option>
+              <option value="Mechanical Engineering">Mechanical</option>
+              <option value="Civil Engineering">Civil Engineering</option>
+              <option value="Electrical Engineering">Electrical Engineering</option>
+              <option value="Information Technology">Information Technology</option>
             </select>
           </div>
           <div class="col-6">
@@ -166,6 +166,7 @@ export default {
           ...(this.role === 'student' ? { student:   this.student }   : {}),
           ...(this.role === 'company' ? { recruiter: this.recruiter } : {}),
         })
+        alert('Account created successfully! Please log in.')
         this.$router.push('/login')
       } catch (e) {
         this.error = e.message || 'Registration failed'

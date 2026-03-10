@@ -35,20 +35,31 @@ class DevelopmentConfig(Config):
     CACHE_KEY_PREFIX = 'campushire_'
 
     # Flask-Mail Configuration
-    MAIL_SERVER = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
+    # MAIL_SERVER = os.getenv('MAIL_SERVER', 'smtp.gmail.com')
+    # MAIL_PORT = int(os.getenv('MAIL_PORT', 1025))
+    # MAIL_USE_TLS = os.getenv('MAIL_USE_TLS', 'true').lower() == 'true'
+    # MAIL_USE_SSL = os.getenv('MAIL_USE_SSL', 'false').lower() == 'true'
+    # MAIL_USERNAME = os.getenv('MAIL_USERNAME', 'your-email@gmail.com')
+    # MAIL_PASSWORD = os.getenv('MAIL_PASSWORD', 'your-app-password')
+    # MAIL_DEFAULT_SENDER = os.getenv('MAIL_DEFAULT_SENDER', 'noreply@campushire.edu')
+
+    MAIL_SERVER = os.getenv('MAIL_SERVER', 'localhost')
     MAIL_PORT = int(os.getenv('MAIL_PORT', 1025))
-    MAIL_USE_TLS = os.getenv('MAIL_USE_TLS', 'true').lower() == 'true'
-    MAIL_USE_SSL = os.getenv('MAIL_USE_SSL', 'false').lower() == 'true'
-    MAIL_USERNAME = os.getenv('MAIL_USERNAME', 'your-email@gmail.com')
-    MAIL_PASSWORD = os.getenv('MAIL_PASSWORD', 'your-app-password')
-    MAIL_DEFAULT_SENDER = os.getenv('MAIL_DEFAULT_SENDER', 'noreply@campushire.edu')
+    MAIL_USE_TLS = False
+    MAIL_USE_SSL = False
+    MAIL_USERNAME = None
+    MAIL_PASSWORD = None
+    MAIL_DEFAULT_SENDER = "noreply@campushire.edu"
 
 
 
     # Celery configuration for development
      # Celery
-    CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'redis://localhost:6379/0')
-    CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
+    CELERY_BROKER_URL      = 'redis://localhost:6379/0'
+    CELERY_RESULT_BACKEND  = 'redis://localhost:6379/0'
+    COLLEGE_NAME           = 'campus hire'
+    FRONTEND_URL           = 'localhost:5173'
+    ADMIN_EMAIL            = 'admin@campushire.edu' 
 
     ## caching configuration for development
     CACHE_TYPE = 'RedisCache'

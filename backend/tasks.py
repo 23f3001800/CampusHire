@@ -1,554 +1,723 @@
 """
-Celery background tasks for the placement portal.
-Includes daily reminders, monthly reports, and CSV exports.
+tasks.py — Celery tasks for the Placement Portal
+=================================================
+
+Three jobs:
+  a) send_deadline_reminders      – Daily @ 08:00: email students whose
+                                    drive deadline is within the next 3 days.
+  b) send_monthly_activity_report – 1st of every month @ 06:00: HTML
+                                    placement report emailed to every admin.
+  c) export_applications_csv      – Student-triggered async job: builds a CSV
+                                    of the student's application history, saves
+                                    it to /tmp/exports/, then emails a download
+                                    link back to the student.
+
+Celery beat schedule (add to your celery.py / app factory):
+------------------------------------------------------------
+    from celery.schedules import crontab
+
+    app.conf.beat_schedule = {
+        'daily-deadline-reminders': {
+            'task':     'tasks.send_deadline_reminders',
+            'schedule': crontab(hour=8, minute=0),          # every day 08:00
+        },
+        'monthly-activity-report': {
+            'task':     'tasks.send_monthly_activity_report',
+            'schedule': crontab(hour=6, minute=0, day_of_month=1),  # 1st of month
+        },
+    }
+
+Required env / config keys:
+    MAIL_SERVER, MAIL_PORT, MAIL_USE_TLS, MAIL_USERNAME, MAIL_PASSWORD
+    MAIL_DEFAULT_SENDER   (e.g. "Placement Cell <noreply@college.edu>")
+    ADMIN_EMAIL           (fallback if no User with role 'admin' found)
+    FRONTEND_URL          (e.g. "https://placement.college.edu")
 """
-from celery_app import celery
-from flask_mail import Message
-from models import Student, PlacementDrive, Application, Company, Placement
-from db import db
-from datetime import datetime, timedelta
-from sqlalchemy import func
+
 import csv
 import os
+from datetime import datetime, timedelta, date
+from io import StringIO
 
-# Single app import — no create_app() inside tasks
-from extensions import mail
-from flask import current_app as app
+from celery import shared_task, current_app as celery_app
+from flask import render_template_string
+from flask_mail import Message
+
+# ---------------------------------------------------------------------------
+# Lazy imports — resolved inside task body so Flask app context is available
+# ---------------------------------------------------------------------------
+def _get_deps():
+    """Return (mail, db, models…) after the app context is pushed."""
+    from extensions import mail, db  # noqa: WPS433
+    from models import (              # noqa: WPS433
+        Student, Company, User, Application, PlacementDrive, Placement, Role,
+    )
+    return mail, db, Student, Company, User, Application, PlacementDrive, Placement, Role
 
 
+# ===========================================================================
+# a) DAILY DEADLINE REMINDER
+# ===========================================================================
+
+REMINDER_SUBJECT = "⏰ Upcoming Placement Deadline — Action Required"
+
+REMINDER_HTML = """
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: Arial, sans-serif; background:#f4f6fb; margin:0; padding:0; }
+    .wrap { max-width:600px; margin:32px auto; background:#fff;
+            border-radius:10px; overflow:hidden;
+            box-shadow:0 2px 12px rgba(0,0,0,.08); }
+    .header { background:linear-gradient(135deg,#0d6efd,#6610f2);
+              padding:28px 32px; color:#fff; }
+    .header h1 { margin:0; font-size:22px; }
+    .header p  { margin:6px 0 0; opacity:.85; font-size:13px; }
+    .body   { padding:28px 32px; }
+    .drive-card {
+      border:1px solid #dee2e6; border-radius:8px;
+      padding:16px 20px; margin-bottom:14px;
+    }
+    .drive-card h3 { margin:0 0 6px; font-size:16px; color:#0d6efd; }
+    .drive-card p  { margin:3px 0; font-size:13px; color:#555; }
+    .badge-urgent { display:inline-block; background:#dc3545;
+                    color:#fff; border-radius:4px;
+                    padding:2px 8px; font-size:11px; margin-left:8px; }
+    .badge-soon   { display:inline-block; background:#fd7e14;
+                    color:#fff; border-radius:4px;
+                    padding:2px 8px; font-size:11px; margin-left:8px; }
+    .cta { display:inline-block; margin-top:18px;
+           background:#0d6efd; color:#fff; text-decoration:none;
+           padding:10px 24px; border-radius:6px; font-size:14px; }
+    .footer { background:#f8f9fa; padding:16px 32px;
+              font-size:11px; color:#adb5bd; text-align:center; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <h1>📋 Placement Deadline Reminder</h1>
+    <p>Hi {{ name }}, the following drives close soon — don't miss out!</p>
+  </div>
+  <div class="body">
+    {% for d in drives %}
+    <div class="drive-card">
+      <h3>
+        {{ d.title }}
+        {% if d.days_left <= 1 %}
+          <span class="badge-urgent">Today!</span>
+        {% elif d.days_left <= 2 %}
+          <span class="badge-urgent">{{ d.days_left }} days left</span>
+        {% else %}
+          <span class="badge-soon">{{ d.days_left }} days left</span>
+        {% endif %}
+      </h3>
+      <p><strong>Company:</strong> {{ d.company }}</p>
+      <p><strong>Deadline:</strong> {{ d.deadline }}</p>
+      {% if d.salary %}
+      <p><strong>Package:</strong> {{ d.salary }} {{ d.currency }}</p>
+      {% endif %}
+    </div>
+    {% endfor %}
+    <a href="{{ frontend_url }}/drives" class="cta">View &amp; Apply Now →</a>
+  </div>
+  <div class="footer">
+    You received this because you are registered on the Placement Portal.<br>
+    {{ college }} · Placement Cell
+  </div>
+</div>
+</body>
+</html>
+"""
 
 
-
-# ─── Daily Reminder Task ──────────────────────────────────────────────────────
-
-
-@celery.task(name='tasks.send_daily_reminders')
-def send_daily_reminders():
+@shared_task(bind=True, name='tasks.send_deadline_reminders',
+             max_retries=3, default_retry_delay=300)
+def send_deadline_reminders(self):
     """
-    Send daily reminders to students about upcoming application deadlines.
-    Runs daily at 8 AM via Celery Beat.
+    Runs daily. For every open drive whose deadline is within the next
+    REMINDER_DAYS days, email every eligible student who has NOT yet applied.
     """
-    with app.app_context():
-        now       = datetime.utcnow()
-        threshold = now + timedelta(days=3)
+    REMINDER_DAYS = 3
+    from flask import current_app
 
-        upcoming_drives = PlacementDrive.query.filter(
+    mail, db, Student, Company, User, Application, PlacementDrive, Placement, Role = _get_deps()
+
+    today    = date.today()
+    cutoff   = today + timedelta(days=REMINDER_DAYS)
+    frontend = current_app.config.get('FRONTEND_URL', 'https://placement.college.edu')
+    college  = current_app.config.get('COLLEGE_NAME', 'Our Institute')
+
+    # Drives that are still open and closing within the window
+    upcoming_drives = (
+        PlacementDrive.query
+        .filter(
             PlacementDrive.status == 'Open',
-            PlacementDrive.admin_approval_status == 'Approved',
-            PlacementDrive.application_deadline.between(now, threshold)
-        ).all()
-
-        if not upcoming_drives:
-            return {'status': 'no_upcoming_drives'}
-
-        students = Student.query.join(Student.user).filter_by(active=True).all()
-
-        reminders_sent = 0
-        for student in students:
-            applied_ids = {a.drive_id for a in student.applications}
-            eligible    = []
-
-            for drive in upcoming_drives:
-                if drive.id in applied_ids:
-                    continue
-                if drive.min_cgpa and student.cgpa and student.cgpa < drive.min_cgpa:
-                    continue
-                if drive.eligible_branches and student.branch:
-                    allowed = [b.strip().lower() for b in drive.eligible_branches.split(',')]
-                    if student.branch.lower() not in allowed:
-                        continue
-                if drive.eligible_graduation_year and student.graduation_year:
-                    if student.graduation_year != drive.eligible_graduation_year:
-                        continue
-                eligible.append(drive)
-
-            if eligible:
-                _send_reminder_email(student, eligible)
-                reminders_sent += 1
-
-        return {
-            'status':          'success',
-            'reminders_sent':  reminders_sent,
-            'drives_count':    len(upcoming_drives),
-        }
-
-
-def _send_reminder_email(student, drives):
-    """Send deadline reminder email to a student."""
-    subject = (
-        f"⏰ {len(drives)} Placement Drive"
-        f"{'s' if len(drives) > 1 else ''} Closing Soon!"
+            PlacementDrive.application_deadline >= today,
+            PlacementDrive.application_deadline <= cutoff,
+        )
+        .all()
     )
 
-    drive_rows = ''
-    for drive in drives:
-        days_left  = (drive.application_deadline - datetime.utcnow()).days
-        color      = '#dc3545' if days_left <= 1 else '#ffc107'
-        drive_rows += f"""
-        <div style="border-left:4px solid #0d6efd;padding:10px;
-                    margin:10px 0;background:white;">
-            <h3 style="margin:0 0 5px 0">{drive.title}</h3>
-            <p style="margin:5px 0;color:#6c757d">
-                {drive.company.company_name}
-            </p>
-            <p style="margin:5px 0">
-                <strong style="color:{color}">
-                    Deadline: {drive.application_deadline.strftime('%d %b %Y, %I:%M %p')}
-                    ({days_left} day{'s' if days_left != 1 else ''} left)
-                </strong>
-            </p>
-        </div>"""
+    if not upcoming_drives:
+        return {'sent': 0, 'skipped': 'no upcoming drives'}
 
-    html = f"""
-    <html>
-    <body style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
-        <div style="background:#0d6efd;color:white;padding:20px;text-align:center">
-            <h1>🎓 CampusHire Reminder</h1>
-        </div>
-        <div style="padding:20px">
-            <p>Hi <strong>{student.user.name}</strong>,</p>
-            <p>The following placement drives are closing soon. Don't miss out!</p>
-            <div style="background:#f8f9fa;padding:15px;border-radius:8px;margin:20px 0">
-                {drive_rows}
-            </div>
-            <div style="text-align:center;margin:30px 0">
-                <a href="http://localhost:5173/student/{student.id}"
-                   style="background:#0d6efd;color:white;padding:12px 30px;
-                          text-decoration:none;border-radius:5px;display:inline-block">
-                    View All Drives
-                </a>
-            </div>
-            <p style="color:#6c757d;font-size:.9rem;margin-top:30px">
-                This is an automated reminder from CampusHire Placement Portal.
-            </p>
-        </div>
-    </body>
-    </html>"""
+    # Build a lookup: drive_id → set of student_ids who already applied
+    applied_map = {}
+    for drive in upcoming_drives:
+        applied_map[drive.id] = {
+            a.student_id
+            for a in Application.query.filter_by(drive_id=drive.id).all()
+        }
 
-    msg = Message(subject, recipients=[student.user.email], html=html)
-    mail.send(msg)
+    # All active students with an email
+    students = (
+        Student.query
+        .join(Student.user)
+        .filter(User.active == True)          # noqa: E712
+        .all()
+    )
 
+    sent_count = 0
 
-# ─── Monthly Report Task ──────────────────────────────────────────────────────
+    for student in students:
+        if not student.user or not student.user.email:
+            continue
 
+        # Which drives is this student eligible for but hasn't applied yet?
+        eligible = []
+        for drive in upcoming_drives:
+            if student.id in applied_map[drive.id]:
+                continue                      # already applied
+            deadline = drive.application_deadline
+            if isinstance(deadline, datetime):
+                deadline = deadline.date()
+            days_left = (deadline - today).days
+            eligible.append({
+                'title':    drive.title,
+                'company':  drive.company.company_name if drive.company else '—',
+                'deadline': deadline.strftime('%d %b %Y'),
+                'days_left': days_left,
+                'salary':   drive.salary_max,
+                'currency': drive.currency or 'INR',
+            })
 
-@celery.task(name='tasks.generate_monthly_report')
-def generate_monthly_report():
-    """
-    Generate and email monthly placement activity report to admin.
-    Runs on 1st of every month at 9 AM via Celery Beat.
-    """
-    with app.app_context():
-        from models import User, Role
-        admin_role = Role.query.filter_by(name='admin').first()
-        if not admin_role or not admin_role.users:
-            return {'status': 'no_admin_found'}
+        if not eligible:
+            continue
 
-        admin = admin_role.users[0]
-
-        today            = datetime.utcnow()
-        last_month_start = (today.replace(day=1) - timedelta(days=1)).replace(day=1)
-        last_month_end   = today.replace(day=1) - timedelta(seconds=1)
-
-        drives_last_month = PlacementDrive.query.filter(
-            PlacementDrive.posted_date.between(last_month_start, last_month_end)
-        ).count()
-
-        apps_last_month = Application.query.filter(
-            Application.applied_date.between(last_month_start, last_month_end)
-        ).count()
-
-        placements_last_month = Placement.query.filter(
-            Placement.created_at.between(last_month_start, last_month_end)
-        ).count()
-
-        top_companies = db.session.query(
-            Company.company_name,
-            func.count(Placement.id).label('placement_count')
-        ).join(Placement, Company.id == Placement.company_id)\
-         .group_by(Company.id)\
-         .order_by(func.count(Placement.id).desc())\
-         .limit(5).all()
-
-        html = _generate_report_html(
-            last_month_start, last_month_end,
-            drives_last_month, apps_last_month, placements_last_month,
-            Student.query.count(),
-            Company.query.count(),
-            PlacementDrive.query.count(),
-            Application.query.count(),
-            Placement.query.count(),
-            top_companies,
+        html_body = render_template_string(
+            REMINDER_HTML,
+            name=student.user.name,
+            drives=eligible,
+            frontend_url=frontend,
+            college=college,
         )
 
-        subject = f"📊 Monthly Placement Report — {last_month_start.strftime('%B %Y')}"
-        msg     = Message(subject, recipients=[admin.email], html=html)
-        mail.send(msg)
+        msg = Message(
+            subject=REMINDER_SUBJECT,
+            recipients=[student.user.email],
+            html=html_body,
+        )
+        try:
+            mail.send(msg)
+            sent_count += 1
+        except Exception as exc:
+            # Log but don't abort the whole job
+            current_app.logger.error(
+                f'Reminder email failed for student {student.id}: {exc}'
+            )
 
-        return {
-            'status':       'success',
-            'period':       last_month_start.strftime('%B %Y'),
-            'drives':       drives_last_month,
-            'applications': apps_last_month,
-            'placements':   placements_last_month,
-        }
+    return {'sent': sent_count, 'drives_checked': len(upcoming_drives)}
 
 
-def _generate_report_html(start, end, drives, apps, placements,
-                           total_students, total_companies, total_drives,
-                           total_apps, total_placements, top_companies):
-    rows = ''.join(
-        f'<tr><td>{c[0]}</td><td>{c[1]}</td></tr>'
-        for c in top_companies
-    )
-    return f"""
-    <html>
-    <head>
-        <style>
-            body      {{ font-family:Arial,sans-serif;max-width:800px;margin:0 auto }}
-            .header   {{ background:linear-gradient(135deg,#667eea,#764ba2);
-                         color:white;padding:30px;text-align:center }}
-            .section  {{ padding:20px;margin:20px 0;background:#f8f9fa;border-radius:8px }}
-            .grid     {{ display:grid;grid-template-columns:repeat(3,1fr);gap:15px }}
-            .card     {{ background:white;padding:20px;border-radius:8px;text-align:center;
-                         box-shadow:0 2px 4px rgba(0,0,0,.1) }}
-            .num      {{ font-size:2.5rem;font-weight:bold;color:#0d6efd }}
-            .lbl      {{ color:#6c757d;font-size:.9rem;margin-top:5px }}
-            table     {{ width:100%;border-collapse:collapse;margin:20px 0 }}
-            th,td     {{ padding:12px;text-align:left;border-bottom:1px solid #dee2e6 }}
-            th        {{ background:#0d6efd;color:white }}
-            tr:hover  {{ background:#f8f9fa }}
-        </style>
-    </head>
-    <body>
-        <div class="header">
-            <h1>📊 Monthly Placement Activity Report</h1>
-            <p style="font-size:1.2rem;margin-top:10px">
-                {start.strftime('%B %Y')}
-                ({start.strftime('%d %b')} – {end.strftime('%d %b')})
-            </p>
-        </div>
+# ===========================================================================
+# b) MONTHLY ACTIVITY REPORT  (sent to admin on 1st of every month)
+# ===========================================================================
 
-        <div class="section">
-            <h2>📈 Last Month's Activity</h2>
-            <div class="grid">
-                <div class="card"><div class="num">{drives}</div>
-                    <div class="lbl">Drives Posted</div></div>
-                <div class="card"><div class="num">{apps}</div>
-                    <div class="lbl">Applications</div></div>
-                <div class="card"><div class="num">{placements}</div>
-                    <div class="lbl">Students Placed</div></div>
+REPORT_SUBJECT = "📊 Monthly Placement Activity Report — {month} {year}"
+
+REPORT_HTML = """
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; background:#f4f6fb;
+           margin:0; padding:0; color:#212529; }
+    .wrap { max-width:700px; margin:32px auto; background:#fff;
+            border-radius:12px; overflow:hidden;
+            box-shadow:0 4px 20px rgba(0,0,0,.1); }
+
+    /* Header */
+    .header { background:linear-gradient(135deg,#0d6efd,#6610f2);
+              padding:32px 36px; color:#fff; }
+    .header h1 { margin:0 0 4px; font-size:24px; }
+    .header p  { margin:0; opacity:.85; font-size:13px; }
+
+    /* KPI row */
+    .kpi-row { display:flex; gap:0; border-bottom:1px solid #dee2e6; }
+    .kpi { flex:1; padding:20px 16px; text-align:center;
+           border-right:1px solid #dee2e6; }
+    .kpi:last-child { border-right:none; }
+    .kpi-val  { font-size:32px; font-weight:700; color:#0d6efd; line-height:1; }
+    .kpi-label{ font-size:11px; color:#6c757d; margin-top:4px;
+                text-transform:uppercase; letter-spacing:.06em; }
+
+    /* Section */
+    .section { padding:24px 36px; }
+    .section h2 { font-size:15px; font-weight:700; color:#495057;
+                  text-transform:uppercase; letter-spacing:.06em;
+                  border-bottom:2px solid #dee2e6; padding-bottom:8px;
+                  margin:0 0 16px; }
+
+    /* Table */
+    table { width:100%; border-collapse:collapse; font-size:13px; }
+    th { background:#f8f9fa; color:#6c757d; font-weight:600;
+         text-align:left; padding:8px 12px;
+         text-transform:uppercase; font-size:11px; letter-spacing:.05em; }
+    td { padding:10px 12px; border-bottom:1px solid #f0f0f0; }
+    tr:last-child td { border-bottom:none; }
+    .badge { display:inline-block; padding:2px 8px; border-radius:4px;
+             font-size:11px; font-weight:600; }
+    .badge-success { background:#d1e7dd; color:#0f5132; }
+    .badge-warning { background:#fff3cd; color:#664d03; }
+    .badge-danger  { background:#f8d7da; color:#842029; }
+
+    /* Progress bar */
+    .progress-wrap { background:#e9ecef; border-radius:99px;
+                     height:8px; overflow:hidden; margin-top:4px; }
+    .progress-bar  { height:100%; background:#0d6efd; border-radius:99px; }
+
+    /* Footer */
+    .footer { background:#f8f9fa; padding:16px 36px;
+              font-size:11px; color:#adb5bd; text-align:center;
+              border-top:1px solid #dee2e6; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- Header -->
+  <div class="header">
+    <h1>📊 Monthly Placement Report</h1>
+    <p>{{ college }} · {{ month }} {{ year }} · Generated {{ generated_on }}</p>
+  </div>
+
+  <!-- KPIs -->
+  <div class="kpi-row">
+    <div class="kpi">
+      <div class="kpi-val">{{ stats.drives }}</div>
+      <div class="kpi-label">Drives Conducted</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-val">{{ stats.applications }}</div>
+      <div class="kpi-label">Applications</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-val">{{ stats.selected }}</div>
+      <div class="kpi-label">Students Selected</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-val">{{ stats.placement_rate }}%</div>
+      <div class="kpi-label">Placement Rate</div>
+    </div>
+  </div>
+
+  <!-- Drive breakdown -->
+  <div class="section">
+    <h2>Drives This Month</h2>
+    {% if drives %}
+    <table>
+      <thead>
+        <tr>
+          <th>Drive</th>
+          <th>Company</th>
+          <th>Applied</th>
+          <th>Selected</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in drives %}
+        <tr>
+          <td><strong>{{ d.title }}</strong></td>
+          <td>{{ d.company }}</td>
+          <td>{{ d.applied }}</td>
+          <td>{{ d.selected }}</td>
+          <td>
+            <span class="badge
+              {% if d.status == 'Completed' %}badge-success
+              {% elif d.status == 'Open' %}badge-warning
+              {% else %}badge-danger{% endif %}">
+              {{ d.status }}
+            </span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p style="color:#6c757d;font-size:13px;">No drives were conducted this month.</p>
+    {% endif %}
+  </div>
+
+  <!-- Top companies -->
+  {% if top_companies %}
+  <div class="section" style="border-top:1px solid #dee2e6">
+    <h2>Top Recruiting Companies</h2>
+    <table>
+      <thead><tr><th>Company</th><th>Offers Made</th><th>Share</th></tr></thead>
+      <tbody>
+        {% for c in top_companies %}
+        <tr>
+          <td>{{ c.name }}</td>
+          <td>{{ c.offers }}</td>
+          <td style="width:200px">
+            <div class="progress-wrap">
+              <div class="progress-bar" style="width:{{ c.pct }}%"></div>
             </div>
-        </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
 
-        <div class="section">
-            <h2>🎯 Overall Platform Statistics</h2>
-            <table>
-                <tr><th>Metric</th><th>Count</th></tr>
-                <tr><td>Total Students</td><td>{total_students}</td></tr>
-                <tr><td>Total Companies</td><td>{total_companies}</td></tr>
-                <tr><td>Total Drives</td><td>{total_drives}</td></tr>
-                <tr><td>Total Applications</td><td>{total_apps}</td></tr>
-                <tr><td>Total Placements</td><td>{total_placements}</td></tr>
-            </table>
-        </div>
+  <!-- Branch breakdown -->
+  {% if branch_stats %}
+  <div class="section" style="border-top:1px solid #dee2e6">
+    <h2>Placements by Branch</h2>
+    <table>
+      <thead><tr><th>Branch</th><th>Selected</th></tr></thead>
+      <tbody>
+        {% for b in branch_stats %}
+        <tr>
+          <td>{{ b.branch }}</td>
+          <td>{{ b.count }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
 
-        <div class="section">
-            <h2>🏆 Top 5 Recruiting Companies</h2>
-            <table>
-                <tr><th>Company</th><th>Placements</th></tr>
-                {rows}
-            </table>
-        </div>
-
-        <div style="text-align:center;margin:40px 0;
-                    color:#6c757d;font-size:.9rem">
-            <p>Generated on {datetime.utcnow().strftime('%d %B %Y, %I:%M %p UTC')}</p>
-            <p>CampusHire Placement Portal — Automated Report</p>
-        </div>
-    </body>
-    </html>"""
-
-
-# ─── Student CSV Export Task ──────────────────────────────────────────────────
+  <div class="footer">
+    This report was auto-generated by the Placement Portal on {{ generated_on }}.<br>
+    {{ college }} · Placement Cell · Confidential
+  </div>
+</div>
+</body>
+</html>
+"""
 
 
-@celery.task(bind=True, name='tasks.export_applications_csv')
+@shared_task(bind=True, name='tasks.send_monthly_activity_report',
+             max_retries=3, default_retry_delay=600)
+def send_monthly_activity_report(self):
+    """
+    Runs on the 1st of every month at 06:00.
+    Builds an HTML report covering the previous calendar month and
+    emails it to every user who has the 'admin' role.
+    """
+    from flask import current_app
+    from sqlalchemy import func, extract
+
+    mail, db, Student, Company, User, Application, PlacementDrive, Placement, Role = _get_deps()
+
+    today     = date.today()
+    # Report window = previous calendar month
+    first_of_this  = today.replace(day=1)
+    last_of_prev   = first_of_this - timedelta(days=1)
+    first_of_prev  = last_of_prev.replace(day=1)
+
+    month_label = first_of_prev.strftime('%B')
+    year_label  = first_of_prev.strftime('%Y')
+    college     = current_app.config.get('COLLEGE_NAME', 'Our Institute')
+    frontend    = current_app.config.get('FRONTEND_URL', 'https://placement.college.edu')
+
+    # ── Drives that started or were active in the previous month ─────────────
+    month_drives = (
+        PlacementDrive.query
+        .filter(
+            PlacementDrive.created_at >= datetime.combine(first_of_prev, datetime.min.time()),
+            PlacementDrive.created_at <  datetime.combine(first_of_this, datetime.min.time()),
+        )
+        .all()
+    )
+
+    # ── Applications placed in that month ────────────────────────────────────
+    month_apps = (
+        Application.query
+        .filter(
+            Application.applied_date >= datetime.combine(first_of_prev, datetime.min.time()),
+            Application.applied_date <  datetime.combine(first_of_this, datetime.min.time()),
+        )
+        .all()
+    )
+
+    selected_apps = [a for a in month_apps if a.status == 'Selected']
+    total_apps    = len(month_apps)
+    total_sel     = len(selected_apps)
+    placement_rate = round((total_sel / total_apps * 100) if total_apps else 0, 1)
+
+    # ── Per-drive breakdown ───────────────────────────────────────────────────
+    drives_data = []
+    for d in month_drives:
+        d_apps = [a for a in month_apps if a.drive_id == d.id]
+        drives_data.append({
+            'title':    d.title,
+            'company':  d.company.company_name if d.company else '—',
+            'applied':  len(d_apps),
+            'selected': sum(1 for a in d_apps if a.status == 'Selected'),
+            'status':   d.status,
+        })
+
+    # ── Top companies by offers ───────────────────────────────────────────────
+    company_offer_map = {}
+    for a in selected_apps:
+        if a.drive and a.drive.company:
+            name = a.drive.company.company_name
+            company_offer_map[name] = company_offer_map.get(name, 0) + 1
+
+    sorted_companies = sorted(company_offer_map.items(), key=lambda x: x[1], reverse=True)[:5]
+    max_offers = sorted_companies[0][1] if sorted_companies else 1
+    top_companies = [
+        {'name': name, 'offers': cnt, 'pct': round(cnt / max_offers * 100)}
+        for name, cnt in sorted_companies
+    ]
+
+    # ── Branch breakdown ──────────────────────────────────────────────────────
+    branch_map = {}
+    for a in selected_apps:
+        if a.student and a.student.branch:
+            branch_map[a.student.branch] = branch_map.get(a.student.branch, 0) + 1
+
+    branch_stats = [
+        {'branch': b, 'count': c}
+        for b, c in sorted(branch_map.items(), key=lambda x: x[1], reverse=True)
+    ]
+
+    # ── Render HTML ───────────────────────────────────────────────────────────
+    html_body = render_template_string(
+        REPORT_HTML,
+        college=college,
+        month=month_label,
+        year=year_label,
+        generated_on=today.strftime('%d %b %Y'),
+        stats={
+            'drives':          len(month_drives),
+            'applications':    total_apps,
+            'selected':        total_sel,
+            'placement_rate':  placement_rate,
+        },
+        drives=drives_data,
+        top_companies=top_companies,
+        branch_stats=branch_stats,
+        frontend_url=frontend,
+    )
+
+    # ── Find admin recipients ─────────────────────────────────────────────────
+    admin_role = Role.query.filter_by(name='admin').first()
+    if admin_role:
+        admin_emails = [u.email for u in admin_role.users if u.email and u.active]
+    else:
+        fallback = current_app.config.get('ADMIN_EMAIL')
+        admin_emails = [fallback] if fallback else []
+
+    if not admin_emails:
+        current_app.logger.warning('Monthly report: no admin emails found.')
+        return {'sent': 0, 'reason': 'no admin emails'}
+
+    subject = REPORT_SUBJECT.format(month=month_label, year=year_label)
+
+    sent_count = 0
+    for email in admin_emails:
+        msg = Message(subject=subject, recipients=[email], html=html_body)
+        try:
+            mail.send(msg)
+            sent_count += 1
+        except Exception as exc:
+            current_app.logger.error(f'Monthly report email failed to {email}: {exc}')
+
+    return {
+        'sent':         sent_count,
+        'month':        f'{month_label} {year_label}',
+        'drives':       len(month_drives),
+        'applications': total_apps,
+        'selected':     total_sel,
+    }
+
+
+# ===========================================================================
+# c) USER-TRIGGERED ASYNC CSV EXPORT
+# ===========================================================================
+
+EXPORT_DONE_SUBJECT = "✅ Your Application Export is Ready"
+
+EXPORT_DONE_HTML = """
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { font-family: Arial, sans-serif; background:#f4f6fb; margin:0; padding:0; }
+    .wrap { max-width:560px; margin:32px auto; background:#fff;
+            border-radius:10px; overflow:hidden;
+            box-shadow:0 2px 12px rgba(0,0,0,.08); }
+    .header { background:linear-gradient(135deg,#198754,#0d6efd);
+              padding:28px 32px; color:#fff; }
+    .header h1 { margin:0; font-size:20px; }
+    .body   { padding:28px 32px; }
+    .body p { color:#555; font-size:14px; line-height:1.6; }
+    .meta { background:#f8f9fa; border-radius:8px; padding:14px 18px;
+            margin:16px 0; font-size:13px; color:#495057; }
+    .meta strong { color:#212529; }
+    .cta  { display:inline-block; background:#0d6efd; color:#fff;
+            text-decoration:none; padding:10px 24px;
+            border-radius:6px; font-size:14px; margin-top:8px; }
+    .footer { background:#f8f9fa; padding:14px 32px;
+              font-size:11px; color:#adb5bd; text-align:center; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header"><h1>✅ Your CSV Export is Ready!</h1></div>
+  <div class="body">
+    <p>Hi <strong>{{ name }}</strong>,</p>
+    <p>Your placement application history export has been generated successfully.</p>
+    <div class="meta">
+      <strong>File:</strong> {{ filename }}<br>
+      <strong>Records:</strong> {{ record_count }} application(s)<br>
+      <strong>Generated:</strong> {{ generated_on }}
+    </div>
+    <p>Click the button below to download your CSV. The link expires in 24 hours.</p>
+    <a href="{{ download_url }}" class="cta">⬇ Download CSV</a>
+  </div>
+  <div class="footer">
+    This export was requested from the Placement Portal student dashboard.<br>
+    {{ college }} · Placement Cell
+  </div>
+</div>
+</body>
+</html>
+"""
+
+# CSV columns
+CSV_HEADERS = [
+    'Application ID',
+    'Student ID',
+    'Student Name',
+    'Company Name',
+    'Drive Title',
+    'Drive Location',
+    'Salary (Min)',
+    'Salary (Max)',
+    'Currency',
+    'Application Status',
+    'Applied Date',
+    'Reviewed Date',
+    'Cover Letter',
+]
+
+
+@shared_task(bind=True, name='tasks.export_applications_csv',
+             max_retries=3, default_retry_delay=60)
 def export_applications_csv(self, student_id):
-    """Export student's full application history as CSV."""
-    with app.app_context():
-        student = Student.query.get(student_id)
-        if not student:
-            raise ValueError('Student not found')
+    """
+    User-triggered async job.
+    1. Fetches all applications for student_id.
+    2. Writes a CSV to /tmp/exports/<filename>.
+    3. Emails the student a download link.
+    4. Returns metadata dict (picked up by the status-polling endpoint).
+    """
+    from flask import current_app
 
-        applications = Application.query.filter_by(student_id=student_id)\
-                                        .order_by(Application.applied_date.desc()).all()
+    mail, db, Student, Company, User, Application, PlacementDrive, Placement, Role = _get_deps()
 
-        os.makedirs('/tmp/exports', exist_ok=True)
-        timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
-        filename  = f'applications_{student_id}_{timestamp}.csv'
-        filepath  = f'/tmp/exports/{filename}'
+    student = Student.query.get(student_id)
+    if not student or not student.user:
+        raise ValueError(f'Student {student_id} not found')
 
-        with open(filepath, 'w', newline='', encoding='utf-8') as f:
-            writer = csv.writer(f)
-            writer.writerow([
-                'Application ID', 'Company Name', 'Drive Title',
-                'Job Type', 'Location', 'Salary',
-                'Applied Date', 'Status', 'Reviewed Date', 'Notes',
-            ])
-            for a in applications:
-                writer.writerow([
-                    a.id,
-                    a.drive.company.company_name if a.drive and a.drive.company else 'N/A',
-                    a.drive.title    if a.drive else 'N/A',
-                    a.drive.job_type if a.drive else 'N/A',
-                    a.drive.location if a.drive else 'N/A',
-                    a.drive.salary_max if a.drive else 'N/A',
-                    a.applied_date.strftime('%Y-%m-%d %H:%M')   if a.applied_date   else '',
-                    a.status,
-                    a.reviewed_date.strftime('%Y-%m-%d %H:%M')  if a.reviewed_date  else '',
-                    a.notes or '',
-                ])
-
-        # Notify student via email
-        _send_export_ready_email(student, filename, 'student', student_id)
-
-        return {
-            'status':       'SUCCESS',
-            'filename':     filename,
-            'record_count': len(applications),
-        }
-
-
-# ─── Company CSV Export Task ──────────────────────────────────────────────────
-
-
-@celery.task(bind=True, name='tasks.export_company_applicants_csv')
-def export_company_applicants_csv(self, company_id, drive_id):
-    """Export all applicants for a company's drive as CSV."""
-    with app.app_context():
-        company = Company.query.get(company_id)
-        if not company:
-            raise ValueError('Company not found')
-
-        drive = PlacementDrive.query.filter_by(
-            id=drive_id, company_id=company_id).first()
-        if not drive:
-            raise ValueError('Drive not found')
-
-        applications = Application.query.filter_by(drive_id=drive_id)\
-                                        .order_by(Application.applied_date.desc()).all()
-
-        os.makedirs('/tmp/exports', exist_ok=True)
-        timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
-        filename  = f'applicants_{company_id}_drive{drive_id}_{timestamp}.csv'
-        filepath  = f'/tmp/exports/{filename}'
-
-        with open(filepath, 'w', newline='', encoding='utf-8') as f:
-            writer = csv.writer(f)
-            writer.writerow([
-                'Application ID', 'Student Name', 'Email',
-                'Roll Number', 'Branch', 'CGPA',
-                'Graduation Year', 'Phone',
-                'Applied Date', 'Status', 'Reviewed Date', 'Notes',
-            ])
-            for a in applications:
-                s = a.student
-                writer.writerow([
-                    a.id,
-                    s.user.name  if s and s.user else 'N/A',
-                    s.user.email if s and s.user else 'N/A',
-                    s.roll_number     if s else 'N/A',
-                    s.branch          if s else 'N/A',
-                    s.cgpa            if s else 'N/A',
-                    s.graduation_year if s else 'N/A',
-                    s.phone           if s else 'N/A',
-                    a.applied_date.strftime('%Y-%m-%d %H:%M')  if a.applied_date  else '',
-                    a.status,
-                    a.reviewed_date.strftime('%Y-%m-%d %H:%M') if a.reviewed_date else '',
-                    a.notes or '',
-                ])
-
-        # Notify HR via email
-        _send_export_ready_email(company, filename, 'company', company_id)
-
-        return {
-            'status':       'SUCCESS',
-            'filename':     filename,
-            'record_count': len(applications),
-            'drive_title':  drive.title,
-        }
-
-
-def _send_export_ready_email(entity, filename, role, entity_id):
-    """Notify user that their CSV export is ready for download."""
-    is_company  = role == 'company'
-    email       = entity.user.email
-    name        = entity.user.name
-    download_url = (
-        f"http://localhost:5173/company/{entity_id}/export/{filename}"
-        if is_company else
-        f"http://localhost:5173/student/{entity_id}/export/{filename}"
+    applications = (
+        Application.query
+        .filter_by(student_id=student_id)
+        .order_by(Application.applied_date.desc())
+        .all()
     )
 
-    html = f"""
-    <html>
-    <body style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto">
-        <div style="background:#0d6efd;color:white;padding:20px;text-align:center">
-            <h1>🎓 CampusHire</h1>
-        </div>
-        <div style="padding:20px">
-            <p>Hi <strong>{name}</strong>,</p>
-            <p>Your CSV export is ready for download.</p>
-            <div style="text-align:center;margin:30px 0">
-                <a href="{download_url}"
-                   style="background:#28a745;color:white;padding:12px 30px;
-                          text-decoration:none;border-radius:5px;
-                          display:inline-block">
-                    ⬇️ Download CSV
-                </a>
-            </div>
-            <p style="color:#6c757d;font-size:.9rem">
-                This link is valid for 24 hours.
-            </p>
-        </div>
-    </body>
-    </html>"""
+    # ── Build CSV in memory ───────────────────────────────────────────────────
+    output = StringIO()
+    writer = csv.writer(output)
+    writer.writerow(CSV_HEADERS)
+
+    for app in applications:
+        drive   = app.drive
+        company = drive.company if drive else None
+        writer.writerow([
+            app.id,
+            student_id,
+            student.user.name,
+            company.company_name              if company else '—',
+            drive.title                       if drive   else '—',
+            drive.location                    if drive   else '—',
+            drive.salary_min                  if drive   else '—',
+            drive.salary_max                  if drive   else '—',
+            drive.currency                    if drive   else '—',
+            app.status,
+            app.applied_date.strftime('%Y-%m-%d %H:%M') if app.applied_date  else '—',
+            app.reviewed_date.strftime('%Y-%m-%d %H:%M') if app.reviewed_date else '—',
+            (app.cover_letter or '')[:200],   # truncate very long cover letters
+        ])
+
+    csv_content = output.getvalue()
+
+    # ── Persist to disk ───────────────────────────────────────────────────────
+    export_dir = '/tmp/exports'
+    os.makedirs(export_dir, exist_ok=True)
+
+    timestamp = datetime.utcnow().strftime('%Y%m%d_%H%M%S')
+    filename  = f'applications_student{student_id}_{timestamp}.csv'
+    filepath  = os.path.join(export_dir, filename)
+
+    with open(filepath, 'w', newline='', encoding='utf-8') as f:
+        f.write(csv_content)
+
+    # ── Email the student ─────────────────────────────────────────────────────
+    frontend      = current_app.config.get('FRONTEND_URL', 'https://placement.college.edu')
+    college       = current_app.config.get('COLLEGE_NAME', 'Our Institute')
+    download_url  = f"{frontend}/api/student/{student_id}/export-csv/{filename}/download"
+    generated_on  = datetime.utcnow().strftime('%d %b %Y, %H:%M UTC')
+    record_count  = len(applications)
+
+    html_body = render_template_string(
+        EXPORT_DONE_HTML,
+        name=student.user.name,
+        filename=filename,
+        record_count=record_count,
+        generated_on=generated_on,
+        download_url=download_url,
+        college=college,
+    )
 
     msg = Message(
-        '✅ Your CSV Export is Ready — CampusHire',
-        recipients=[email],
-        html=html,
+        subject=EXPORT_DONE_SUBJECT,
+        recipients=[student.user.email],
+        html=html_body,
     )
-    mail.send(msg)
+    try:
+        mail.send(msg)
+    except Exception as exc:
+        current_app.logger.error(
+            f'Export email failed for student {student_id}: {exc}'
+        )
+        # Don't re-raise — file was saved, student can still download via polling
 
-
-# ─── Task 1/5 : Welcome Email (User Registration) ────────────────────────────
-
-@celery.task(bind=True, name='tasks.send_welcome_email', max_retries=3)
-def send_welcome_email(self, user_id):
-    """
-    Send a welcome email immediately after a user registers.
-    Detects role (student / company) and sends a tailored message.
-    Triggered via .delay(user_id) from the registration route.
-    """
-    with app.app_context():
-        try:
-            from models import User
-            user = User.query.get(user_id)
-            if not user:
-                raise ValueError(f'User {user_id} not found')
-
-            # Determine role and dashboard URL
-            role_names  = [r.name for r in user.roles]
-            is_student  = 'student'  in role_names
-            is_company  = 'company'  in role_names
-
-            if is_student:
-                role_label   = 'Student'
-                dashboard_url = f'http://localhost:5173/student/profile'
-                cta_text      = 'Complete Your Profile'
-                extra_section = """
-                <div style="background:#e8f4fd;padding:15px;
-                            border-radius:8px;margin:20px 0">
-                    <h3 style="margin:0 0 10px 0;color:#0d6efd">
-                        🚀 Get Started
-                    </h3>
-                    <ul style="margin:0;padding-left:20px;
-                               color:#495057;line-height:2">
-                        <li>Upload your resume</li>
-                        <li>Add your skills and bio</li>
-                        <li>Browse open placement drives</li>
-                        <li>Apply before deadlines close</li>
-                    </ul>
-                </div>"""
-
-            elif is_company:
-                role_label    = 'Company'
-                dashboard_url = f'http://localhost:5173/company/profile'
-                cta_text      = 'Set Up Your Company Profile'
-                extra_section = """
-                <div style="background:#e8f4fd;padding:15px;
-                            border-radius:8px;margin:20px 0">
-                    <h3 style="margin:0 0 10px 0;color:#0d6efd">
-                        🏢 Next Steps
-                    </h3>
-                    <ul style="margin:0;padding-left:20px;
-                               color:#495057;line-height:2">
-                        <li>Complete your company profile</li>
-                        <li>Wait for admin approval</li>
-                        <li>Post your first placement drive</li>
-                        <li>Start reviewing applicants</li>
-                    </ul>
-                </div>"""
-            else:
-                # Admin or unknown role — skip welcome email
-                return {'status': 'skipped', 'reason': 'non-student/company role'}
-
-            html = f"""
-            <html>
-            <body style="font-family:Arial,sans-serif;
-                         max-width:600px;margin:0 auto">
-
-                <div style="background:linear-gradient(135deg,#0d6efd,#6610f2);
-                            color:white;padding:30px;text-align:center;
-                            border-radius:8px 8px 0 0">
-                    <h1 style="margin:0">🎓 Welcome to CampusHire!</h1>
-                    <p style="margin:10px 0 0 0;font-size:1.1rem;opacity:.9">
-                        Your {role_label} account is ready
-                    </p>
-                </div>
-
-                <div style="padding:30px;background:white">
-                    <p style="font-size:1.1rem">
-                        Hi <strong>{user.name}</strong>,
-                    </p>
-                    <p style="color:#495057;line-height:1.7">
-                        Welcome aboard! Your account has been successfully
-                        created on <strong>CampusHire Placement Portal</strong>.
-                        We're excited to have you with us.
-                    </p>
-
-                    {extra_section}
-
-                    <div style="text-align:center;margin:30px 0">
-                        <a href="{dashboard_url}"
-                           style="background:#0d6efd;color:white;
-                                  padding:14px 35px;text-decoration:none;
-                                  border-radius:6px;display:inline-block;
-                                  font-size:1rem;font-weight:bold">
-                            {cta_text} →
-                        </a>
-                    </div>
-
-                    <hr style="border:none;border-top:1px solid #dee2e6;
-                               margin:30px 0"/>
-
-                    <p style="color:#6c757d;font-size:.85rem;
-                              text-align:center;margin:0">
-                        If you didn't create this account, please ignore
-                        this email or contact support.<br/>
-                        © CampusHire Placement Portal
-                    </p>
-                </div>
-
-            </body>
-            </html>"""
-
-            msg = Message(
-                f'👋 Welcome to CampusHire, {user.name}!',
-                recipients=[user.email],
-                html=html,
-            )
-            mail.send(msg)
-
-            return {
-                'status':  'success',
-                'user_id': user_id,
-                'role':    role_label,
-                'email':   user.email,
-            }
-
-        except Exception as exc:
-            # Retry up to 3 times with exponential backoff
-            raise self.retry(exc=exc, countdown=60 * (self.request.retries + 1))
+    return {
+        'filename':     filename,
+        'record_count': record_count,
+        'download_url': download_url,
+    }

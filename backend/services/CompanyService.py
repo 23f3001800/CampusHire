@@ -27,9 +27,24 @@ class CompanyService:
         if not company:
             return None
 
-        if "active" in data and company.user:
-            company.user.active = bool(data["active"])
+        if "active" in data:
+            new_active = bool(data["active"])
 
+            if company.user:
+                company.user.active = new_active
+
+            company.active = new_active
+
+            drives = PlacementDrive.query.filter_by(company_id=company.id).all()
+
+            if not new_active:
+                # BLOCK company → reject and close drives
+                for d in drives:
+                    if d.admin_approval_status != "Rejected":
+                        d.admin_approval_status = "Rejected"
+                    d.status = "Closed"
+
+        # update other fields
         for field in CompanyService.UPDATABLE:
             if field in data:
                 setattr(company, field, data[field])
@@ -39,7 +54,7 @@ class CompanyService:
         db.session.commit()
 
         return company
-    
+        
 
     @staticmethod
     def delete(company_id):

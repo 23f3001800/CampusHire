@@ -32,19 +32,27 @@ class StudentService:
         'tenth_percentage', 'twelfth_percentage',
         'graduation_year', 'current_semester',
         'skills', 'bio',
-        'linkedin_url', 'github_url', 'portfolio_url', 'coding_profile_url',
+        'linkedin_url', 'github_url', 'portfolio_url', 'coding_profile_url',"active",
     ]
 
     @staticmethod
     def update(student_id, data):
-        # Handles both PUT (full) and PATCH (partial)
-        # Only fields present in data are updated — safe for both cases
         student = Student.query.get(student_id)
         if not student:
             return None
+        if "active" in data and student.user:
+            student.user.active = bool(data["active"])
+
         for field in StudentService.UPDATABLE:
             if field in data:
-                setattr(student, field, data[field])
+                value = data[field]
+
+                # Convert date string to Python date
+                if field == "date_of_birth" and value:
+                    value = datetime.strptime(value, "%Y-%m-%d").date()
+
+                setattr(student, field, value)
+
         student.updated_at = datetime.utcnow()
         db.session.commit()
         return student

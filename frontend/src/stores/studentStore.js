@@ -28,14 +28,7 @@ export const useStudentStore = defineStore('student', {
     loadingInterview: false,
 
     // CSV Export
-    csvExport: {
-      status:      null,   // null | 'PENDING' | 'SUCCESS' | 'FAILURE'
-      taskId:      null,
-      downloadUrl: null,
-      filename:    null,
-      error:       null,
-      _pollTimer:  null,
-    },
+    exportLoading: false,
 
     // Company profile cache — keyed by company_id
     companyCache:      {},
@@ -238,22 +231,22 @@ export const useStudentStore = defineStore('student', {
       this.applications = this.applications.filter(a => a.id !== applicationId)
     },
 
-    // ── Interview ────────────────────────────────────────────────────────────
-    async fetchInterview(companyId, studentId, applicationId, force = false) {
-      const key = `interview_${applicationId}`
-      if (!force && this._fresh(key) && this.interviews[applicationId]) return
-      this.loadingInterview = true
-      console.log(`Fetching interview details for application ${applicationId}...`)
-      console.log(`API endpoint: /company/${companyId}/applications/${applicationId}/interview?student_id=${studentId}`)
-      console.log(`Student ID: ${studentId}, Application ID: ${applicationId}, Company ID: ${companyId}`)
+    async fetchInterview(companyId, applicationId) {
       try {
-        this.interviews[applicationId] = await api.get(
-          `/company/${companyId}/applications/${applicationId}/interview?student_id=${studentId}`
+        const res = await api.get(
+          `/company/${companyId}/applications/${applicationId}/interview`
         )
-        this.ts[key] = Date.now()
+        this.interviews = { ...this.interviews, [applicationId]: res }
+        return res
       } catch (e) {
-        this.error = e.message
-      } finally {
+        // 404 = no interview scheduled yet — silently ignore
+        this.ts[key] = Date.now()
+        const status = e?.response?.status ?? e?.status
+        if (status === 404) return null
+        // Any other error is real — bubble up so the caller can decide
+        throw e
+      }
+      finally {
         this.loadingInterview = false
       }
     },
@@ -271,63 +264,35 @@ export const useStudentStore = defineStore('student', {
         this.loadingPlacements = false
       }
     },
-
-    // ── CSV Export ───────────────────────────────────────────────────────────
-    async startCSVExport(studentId) {
-      this.csvExport.status      = 'PENDING'
-      this.csvExport.taskId      = null
-      this.csvExport.downloadUrl = null
-      this.csvExport.error       = null
-
-      try {
-        const res = await api.post(`/student/${studentId}/export-csv`)
-        this.csvExport.taskId = res.task_id
-        this._pollCSVStatus(studentId, res.task_id)
-      } catch (e) {
-        this.csvExport.status = 'FAILURE'
-        this.csvExport.error  = e.message
-        throw e
-      }
+    async updatePlacementStatus(studentId, placementId, status) {
+      // PATCH /api/student/:studentId/placements/:placementId
+      // status: 'Offered' | 'Joined' | 'Declined'  — all reversible
+      const updated = await api.put(
+        `/student/${studentId}/placements/${placementId}`,
+        { status }
+      )
+      const idx = this.placements.findIndex(p => p.id === placementId)
+      if (idx !== -1) this.placements[idx] = { ...this.placements[idx], ...updated }
+      this.hasActivePlacement = this.placements.some(p => p.status === 'Offered')
+      return updated
     },
 
-    _pollCSVStatus(studentId, taskId) {
-      if (this.csvExport._pollTimer)
-        clearTimeout(this.csvExport._pollTimer)
+  async exportApplicationsCSV(studentId) {
+    this.exportLoading = true
 
-      const poll = async () => {
-        try {
-          const res = await api.get(
-            `/student/${studentId}/export-csv/${taskId}/status`
-          )
-          if (res.status === 'SUCCESS') {
-            this.csvExport.status      = 'SUCCESS'
-            this.csvExport.downloadUrl = res.download_url
-            this.csvExport.filename    = res.filename
-          } else if (res.status === 'FAILURE') {
-            this.csvExport.status = 'FAILURE'
-            this.csvExport.error  = res.error
-          } else {
-            // Still PENDING — poll again in 2s
-            this.csvExport._pollTimer = setTimeout(poll, 2000)
-          }
-        } catch (e) {
-          this.csvExport.status = 'FAILURE'
-          this.csvExport.error  = e.message
-        }
-      }
-
-      this.csvExport._pollTimer = setTimeout(poll, 2000)
+    try {
+      await api.download(
+        `/student/${studentId}/export/csv`,
+        `applications_${studentId}.csv`
+      )
+    } catch (e) {
+      this.error = e.message
+      throw e
+    } finally {
+      this.exportLoading = false
+    }
     },
 
-    resetCSVExport() {
-      if (this.csvExport._pollTimer)
-        clearTimeout(this.csvExport._pollTimer)
-      this.csvExport = {
-        status: null, taskId: null,
-        downloadUrl: null, filename: null,
-        error: null, _pollTimer: null,
-      }
-    },
 
     // ── Company (student-readable) ────────────────────────────────────────────
     async fetchCompanyProfile(companyId, force = false) {

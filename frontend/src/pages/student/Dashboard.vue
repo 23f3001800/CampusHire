@@ -35,40 +35,6 @@
                     Here's what's happening with your placement journey.
                   </p>
                 </div>
-                <!-- Export CSV button — reflects poll status from store -->
-                <button class="btn btn-outline-secondary btn-sm"
-                        :disabled="exportBusy ||
-                                   store.csvExport?.status === 'PENDING'"
-                        @click="triggerExport">
-                  <!-- Pending / polling -->
-                  <span v-if="store.csvExport?.status === 'PENDING'"
-                        class="spinner-border spinner-border-sm me-1">
-                  </span>
-                  <!-- Local submitting -->
-                  <span v-else-if="exportBusy"
-                        class="spinner-border spinner-border-sm me-1">
-                  </span>
-                  <i v-else class="bi bi-download me-1"></i>
-
-                  <span v-if="store.csvExport?.status === 'PENDING'">
-                    Exporting…
-                  </span>
-                  <span v-else-if="store.csvExport?.status === 'SUCCESS'">
-                    <i class="bi bi-check-lg me-1 text-success"></i>
-                    Export Ready
-                  </span>
-                  <span v-else>Export History</span>
-                </button>
-
-                <!-- Download link appears once ready -->
-                <a v-if="store.csvExport?.status === 'SUCCESS' &&
-                          store.csvExport?.downloadUrl"
-                   :href="store.csvExport.downloadUrl"
-                   target="_blank"
-                   class="btn btn-success btn-sm">
-                  <i class="bi bi-file-earmark-arrow-down me-1"></i>
-                  Download CSV
-                </a>
               </div>
 
               <!-- Quick stats -->
@@ -161,7 +127,7 @@
         <div class="small">
           You have a pending placement offer!
           <!-- FIX: correct route -->
-          <router-link to="/student/placement-history"
+          <router-link to="/student/applications"
                        class="alert-link ms-1">
             View offer →
           </router-link>
@@ -725,7 +691,7 @@ const quickStats = computed(() => [
     value: store.placements?.length ?? 0,
     color: 'text-warning',
     bg:    'bg-warning bg-opacity-10',
-    to:    '/student/placement-history',        // FIX
+    to:    '/student/applications',        // FIX
   },
 ])
 
@@ -739,7 +705,7 @@ const quickLinks = computed(() => [
   },
   {
     label:      'Placement History',
-    to:         '/student/placement-history',   // FIX
+    to:         '/student/applications',   // FIX
     icon:       'bi-trophy',
     badge:      store.hasActivePlacement ? 'New' : null,
     badgeClass: 'bg-success',

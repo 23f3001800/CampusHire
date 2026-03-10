@@ -5,6 +5,7 @@ from resources.auth_api import auth_bp
 from resources.api import (
 
     # ── Student ──────────────────────────────────────────────────────────
+    DriveApplicantsAPI,
     OfferLetterDownloadResource,
     StudentResource,
     StudentListResource,
@@ -14,8 +15,6 @@ from resources.api import (
     StudentWithdrawResource,
     StudentPlacementHistoryResource,
     StudentCSVExportResource,
-    StudentCSVExportStatusResource,
-    StudentCSVDownloadResource,
 
     # ── Company ──────────────────────────────────────────────────────────
     CompanyResource,
@@ -25,10 +24,13 @@ from resources.api import (
     CompanyDriveApplicantResource,
     CompanyInterviewResource,
     CompanyUpdateSelectionResource,
+    CompanyDriveExportResource,
+
 
     # ── Public ───────────────────────────────────────────────────────────
     DriveListResource,
     DriveResource,
+    StudentPlacementStatusResource,
 
 
     # ── Admin ────────────────────────────────────────────────────────────
@@ -56,9 +58,7 @@ api.add_resource(StudentApplicationsResource,     '/student/<int:student_id>/app
 api.add_resource(StudentApplyResource,            '/student/<int:student_id>/apply/<int:drive_id>')
 api.add_resource(StudentWithdrawResource,         '/student/<int:student_id>/applications/<int:application_id>')
 api.add_resource(StudentPlacementHistoryResource, '/student/<int:student_id>/placements')
-api.add_resource(StudentCSVExportResource,        '/student/<int:student_id>/export-csv')
-api.add_resource(StudentCSVExportStatusResource,  '/student/<int:student_id>/export-csv/<string:task_id>/status')
-api.add_resource(StudentCSVDownloadResource,      '/student/<int:student_id>/export-csv/<string:filename>/download')
+api.add_resource(StudentCSVExportResource,        '/student/<int:student_id>/export/csv')
 
 
 # ── Company ───────────────────────────────────────────────────────────────────
@@ -69,12 +69,17 @@ api.add_resource(CompanyDriveApplicantsResource, '/company/<int:company_id>/driv
 api.add_resource(CompanyDriveApplicantResource,  '/company/<int:company_id>/drives/<int:drive_id>/applicants/<int:application_id>')
 api.add_resource(CompanyInterviewResource,       '/company/<int:company_id>/applications/<int:application_id>/interview')
 api.add_resource(CompanyUpdateSelectionResource, '/company/<int:company_id>/applications/<int:application_id>/selection')
+api.add_resource(CompanyDriveExportResource,
+    '/company/drives/<int:drive_id>/export/csv')
 
 
 
 api.add_resource(DriveListResource, '/drives')
 api.add_resource(DriveResource,     '/company/<int:company_id>/drives')
-    
+api.add_resource(
+    StudentPlacementStatusResource,
+    '/student/<int:student_id>/placements/<int:placement_id>'
+)    
 
 # ── Admin ─────────────────────────────────────────────────────────────────────
 api.add_resource(AdminStatsResource,           '/admin/stats')
@@ -82,6 +87,10 @@ api.add_resource(AdminSearchResource,          '/admin/search')
 api.add_resource(AdminApplicationsResource,    '/admin/applications')
 api.add_resource(AdminPlacementsResource,      '/admin/placements')
 api.add_resource(AdminExportDataResource,      '/admin/export')
+api.add_resource(
+    DriveApplicantsAPI,
+    "/admin/drives/<int:drive_id>/applicants"
+)
 
 
 # ── File Serving ──────────────────────────────────────────────────────────────
@@ -91,6 +100,4 @@ api.add_resource(
     '/uploads/offers/<string:filename>'
 )
 api.add_resource(OfferLetterUploadResource, '/upload-offer')
-
-
 
