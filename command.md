@@ -85,3 +85,32 @@ python app.py
 cd frontend
 npm install
 npm run dev
+
+zip -r Placement_Portal_23f3001800.zip CampusHire-From-Classroom-to-Career- \
+-x "*/node_modules/*" \
+-x "*/venv/*" \
+-x "*/__pycache__/*" \
+-x "*/.git/*" \
+-x "*/uploads/*" \
+-x "*/instance/*" \
+-x "*.sqlite3" \
+-x "*.rdb" \
+-x "*.log"
+
+
+mkdir viva1_run
+unzip Placement_Portal_23f3001800.zip -d viva1_run
+cd viva1_run/CampusHire-From-Classroom-to-Career-
+
+
+Start backend
+cd backend
+python -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+python app.py
+
+start frontend
+cd frontend
+npm install
+npm run dev

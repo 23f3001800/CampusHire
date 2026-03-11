@@ -16,7 +16,7 @@ def seed_extended_data():
         # ─── 10 STUDENTS ──────────────────────────────────────────────────────
         print("👨‍🎓 Seeding 10 Students...")
         student_data = [
-            ("Vikas Rajput", "vikas@study.com", "23F3001810", 9.2, "Computer Science"),
+            ("Vanya rajput", "vanya@study.com", "23F3001811",  9.2, "Computer Science"),
             ("Ananya Sharma", "ananya@study.com", "23F3001801", 8.5, "Information Technology"),
             ("Rohan Das", "rohan@study.com", "23F3001802", 7.8, "Electronics"),
             ("Priya Verma", "priya@study.com", "23F3001803", 9.5, "Computer Science"),
@@ -54,7 +54,7 @@ def seed_extended_data():
         # ─── 10 COMPANIES ─────────────────────────────────────────────────────
         print("🏢 Seeding 10 Companies...")
         company_names = [
-            ("Cognishield AI", "hr@cognishield.com", "Technology"),
+            ("Love solutions", "hr@lovesolutions.com", "Technology"),
             ("FinEdge Systems", "hr@finedge.com", "Finance"),
             ("HealthTrack", "careers@healthtrack.io", "Healthcare"),
             ("AutoDrive Robotics", "talent@autodrive.com", "Automotive"),
