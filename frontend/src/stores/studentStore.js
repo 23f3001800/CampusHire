@@ -155,6 +155,17 @@ export const useStudentStore = defineStore('student', {
       }
       return res
     },
+    async fetchresume(filename) {
+      try {
+        const res = await api.get(`/uploads/resumes/${filename}`, {
+          responseType: "blob"
+        })
+        return res
+      } catch (e) {
+        this.error = e.message
+        return null
+      }
+    },
 
     async deleteResume(studentId) {
       await api.delete(`/student/${studentId}/resume`)

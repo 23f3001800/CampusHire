@@ -52,11 +52,35 @@ class DevelopmentConfig(Config):
     MAIL_DEFAULT_SENDER = "noreply@campushire.edu"
 
 
+    _broker = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
 
-    # Celery configuration for development
-     # Celery
-    CELERY_BROKER_URL      = 'redis://localhost:6379/0'
-    CELERY_RESULT_BACKEND  = 'redis://localhost:6379/0'
+    CELERY = {
+        # ── Connection ────────────────────────────────────────────────────────
+        'broker_url':                         _broker,
+        'result_backend':                     _broker,
+
+        # ── Serialization ─────────────────────────────────────────────────────
+        'task_serializer':                    'json',
+        'result_serializer':                  'json',
+        'accept_content':                     ['json'],
+
+        # ── Timezone ──────────────────────────────────────────────────────────
+        'timezone':                           'Asia/Kolkata',
+        'enable_utc':                         True,
+
+        # ── Reliability ───────────────────────────────────────────────────────
+        'task_acks_late':                     True,   # ack only after task succeeds
+        'task_reject_on_worker_lost':         True,   # re-queue if worker crashes mid-task
+        'worker_prefetch_multiplier':         1,      # one task at a time per worker thread
+
+        # ── Results ───────────────────────────────────────────────────────────
+        'task_ignore_result':                 False,
+        'result_expires':                     3600,   # purge results after 1 hour
+
+        # ── Startup ───────────────────────────────────────────────────────────
+        'broker_connection_retry_on_startup': True,   # suppress Celery 6 startup warning
+    }
+
     COLLEGE_NAME           = 'campus hire'
     FRONTEND_URL           = 'localhost:5173'
     ADMIN_EMAIL            = 'admin@campushire.edu' 
