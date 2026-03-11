@@ -225,9 +225,13 @@
                 <small class="text-muted">Current resume on file</small>
               </div>
               <div class="d-flex gap-2">
-                <a :href="store.profile?.resume_link" target="_blank" class="btn btn-outline-primary btn-sm">
-                  <i class="bi bi-eye me-1"></i>View
-                </a>
+                <button 
+                    class="btn btn-outline-primary btn-sm"
+                    @click="viewResume(store.profile?.resume_filename)"
+                    :disabled="!store.profile?.resume_link"
+                  >
+                    <i class="bi bi-eye me-1"></i>View
+                </button>
                 <button class="btn btn-outline-danger btn-sm" @click="removeResume" :disabled="resumeLoading">
                   <i class="bi bi-trash me-1"></i>Remove
                 </button>
@@ -284,6 +288,7 @@ export default {
   data: () => ({
     activeTab:    'personal',
     form:         {},
+    offerBusy:   {},
     successMsg:   '',
     errorMsg:     '',
     resumeLoading: false,
@@ -358,6 +363,17 @@ export default {
       const file = e.dataTransfer.files[0]
       if (file) this._upload(file)
     },
+    async viewResume(filename) {
+        this.offerBusy = true  // ✅ no .value
+        try {
+          const blob = await this.store.fetchresume(filename)
+          if (blob) window.open(URL.createObjectURL(blob), '_blank')
+        } catch (e) {
+          showToast('danger', e?.message ?? 'Failed to load resume.')
+        } finally {
+          this.offerBusy = false // ✅ correct
+        }
+      },
 
     async _upload(file) {
       const ALLOWED = ['application/pdf',

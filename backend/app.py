@@ -1,53 +1,53 @@
-
-from flask_mail import Message
 from flask import Flask
-from config import DevelopmentConfig
-from models import db
-from resources import auth_bp, api_bp
-from extensions import mail, cache, security
-from flask_security import SQLAlchemyUserDatastore
-from models import User, Role 
 from flask_cors import CORS
+from flask_security import SQLAlchemyUserDatastore
 
+from config import DevelopmentConfig
+from extensions import cache, mail, security
+from models import Role, User, db
+from resources import api_bp, auth_bp
 
 
 def create_app():
     app = Flask(__name__)
     app.config.from_object(DevelopmentConfig)
-    db.init_app(app)
-    # Initialize Flask-Mail
 
+    # ── Extensions ────────────────────────────────────────────────────────────
+    db.init_app(app)
     mail.init_app(app)
-     # Initialize Flask-Caching
     cache.init_app(app)
-      # ← Celery context setup before registering blueprints
-     # ADDED: Enable CORS for frontend communication
-    # REASON: Frontend runs on :5173, backend on :5000 - CORS required
+
+    # ── Celery — must be init'd here so app.extensions["celery"] exists ───────
+    from celery_config import celery_init_app
+    celery_init_app(app)
+
+    # ── CORS ──────────────────────────────────────────────────────────────────
     CORS(app, resources={
         r"/api/*": {
-            "origins": app.config.get('CORS_ORIGINS', 'http://localhost:5173'),
-            "methods": ["GET", "POST", "PUT", "DELETE", "PATCH"],
-            "allow_headers": ["Content-Type", "Authentication-Token"],
-            "expose_headers": ["Authentication-Token"],
+            "origins":         app.config.get("CORS_ORIGINS", "http://localhost:5173"),
+            "methods":         ["GET", "POST", "PUT", "DELETE", "PATCH"],
+            "allow_headers":   ["Content-Type", "Authentication-Token"],
+            "expose_headers":  ["Authentication-Token"],
         }
-    })    
-    #CORS(app, origins=["http://localhost:5173", "http://127.0.0.1:5173"] )
-    datastore=SQLAlchemyUserDatastore(db, User, Role)
+    })
+
+    # ── Flask-Security ────────────────────────────────────────────────────────
+    datastore = SQLAlchemyUserDatastore(db, User, Role)
     security.init_app(app, datastore)
+    app.datastore = datastore
+
+    # ── Blueprints ────────────────────────────────────────────────────────────
     app.register_blueprint(auth_bp)
     app.register_blueprint(api_bp)
-    app.datastore=datastore
+
+    # ── DB ────────────────────────────────────────────────────────────────────
     with app.app_context():
         db.create_all()
+
     return app
 
-app=create_app()
 
-
-
-
-
-
+app = create_app()
 
 if __name__ == "__main__":
     app.run(debug=True)

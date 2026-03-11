@@ -41,11 +41,17 @@ git pull origin main --rebase
  redis-server
 
  sudo systemctl stop redis
+ sudo systemctl start redis && redis-cli ping   
 
+celery -A celery_config.celery_app worker --loglevel=info
+celery -A celery_config.celery_app beat --loglevel=info
 celery -A celery_worker worker --loglevel=info
 celery -A celery_worker.celery beat --loglevel=info --dry-run
 
 
+
+python trigger_tasks.py --ping
+python trigger_tasks.py --async
 
 ### database initalization 
 

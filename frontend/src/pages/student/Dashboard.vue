@@ -843,21 +843,6 @@ function toggleSave(drive) {
   }
 }
 
-async function triggerExport() {
-  exportBusy.value = true
-  try {
-    await store.startCSVExport(userStore.studentId)
-    showToast(
-      'success',
-      "Export started! You'll receive an email when it's ready."
-    )
-  } catch (e) {
-    showToast('danger', e?.message ?? 'Export failed. Please try again.')
-  } finally {
-    exportBusy.value = false
-  }
-}
-
 // ── Mount ──────────────────────────────────────────────────────────────────
 onMounted(async () => {
   await Promise.all([
