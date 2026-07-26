@@ -555,7 +555,9 @@ def export_applications_csv(self, student_id):
             (app.cover_letter or "")[:200],
         ])
 
-    export_dir = "/tmp/exports"
+    # Keep exports beside the other uploads rather than in /tmp, so the same
+    # persistence story (and the same Render disk, if one is mounted) applies.
+    export_dir = os.path.join(current_app.config["UPLOAD_FOLDER"], "exports")
     os.makedirs(export_dir, exist_ok=True)
 
     ts       = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
@@ -570,9 +572,12 @@ def export_applications_csv(self, student_id):
         logger.exception("Failed to write CSV")
         raise self.retry(exc=exc)
 
-    frontend     = current_app.config.get("FRONTEND_URL", "http://localhost:5173")
-    college      = current_app.config.get("COLLEGE_NAME", "Our Institute")
-    download_url = f"{frontend}/api/student/{student_id}/export-csv/{filename}/download"
+    frontend = current_app.config.get("FRONTEND_URL", "http://localhost:5173")
+    college  = current_app.config.get("COLLEGE_NAME", "Our Institute")
+    # Point at the in-app applications page, not a bare API path. The previous
+    # URL joined FRONTEND_URL to an /api/... route that (a) was never registered
+    # and (b) would have needed an auth token a plain email link cannot carry.
+    download_url = f"{frontend}/student/applications"
     generated_on = datetime.utcnow().strftime("%d %b %Y, %H:%M UTC")
 
     html_body = render_template_string(

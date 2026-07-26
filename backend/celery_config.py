@@ -101,6 +101,9 @@ def celery_init_app(app: Flask) -> Celery:
 # ---------------------------------------------------------------------------
 from app import create_app as _create_app  # noqa: E402
 
-# create_app() takes no arguments — matches the actual app.py signature
+# create_app() already calls celery_init_app() internally and stashes the result
+# on app.extensions["celery"], so reuse that instance instead of building a
+# second one. Initialising twice used to leave two Celery objects fighting over
+# set_default(), which made @shared_task resolution order-dependent.
 _flask_app = _create_app()
-celery_app = celery_init_app(_flask_app)
+celery_app = _flask_app.extensions["celery"]

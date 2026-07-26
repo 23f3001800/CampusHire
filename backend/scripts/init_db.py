@@ -1,9 +1,30 @@
-import uuid
-from datetime import datetime, timezone
-from app import app
-from models import db, User, Role, Student, Company
-from flask_security.datastore import SQLAlchemyUserDatastore
-from flask_security.utils import hash_password
+"""
+init_db.py — DEVELOPMENT ONLY. Drops every table and reseeds test users.
+
+For production use scripts/bootstrap_db.py, which is idempotent and destroys
+nothing.
+"""
+
+import os
+import sys
+
+# Hard stop, checked BEFORE importing app so it fires regardless of whether the
+# production secrets happen to be set. This script calls drop_all(); pointed at
+# the production DATABASE_URL it would wipe the live database, and the only
+# thing standing between a tired developer and that outcome is which shell they
+# happen to be in.
+if (os.getenv("APP_ENV") or os.getenv("FLASK_ENV") or "development").lower() == "production":
+    sys.exit(
+        "✗ Refusing to run init_db.py with APP_ENV=production — it calls drop_all().\n"
+        "  Use `python -m scripts.bootstrap_db` instead."
+    )
+
+import uuid                                              # noqa: E402
+from datetime import datetime, timezone                  # noqa: E402
+from app import app                                      # noqa: E402
+from models import db, User, Role, Student, Company      # noqa: E402
+from flask_security.datastore import SQLAlchemyUserDatastore   # noqa: E402
+from flask_security.utils import hash_password           # noqa: E402
 
 def create_user_if_not_exists(datastore, email, name, password, roles):
     user = datastore.find_user(email=email)
@@ -34,7 +55,8 @@ with app.app_context():
     datastore.commit()
 
     print("👤 Creating core test users...")
-    TEST_PASSWORD = 'password123'
+    # Override with SEED_PASSWORD to avoid a well-known credential even locally.
+    TEST_PASSWORD = os.getenv("SEED_PASSWORD", "changeme-dev-only")
     HASHED_PW = hash_password(TEST_PASSWORD)
 
     # 1. Admin

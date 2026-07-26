@@ -1,0 +1,214 @@
+# ==============================================================================
+# CampusHire — Render Blueprint
+# ==============================================================================
+# Deploy: push this repo to GitHub, then Render Dashboard → New → Blueprint.
+# Render reads this file and provisions all five components in one shot.
+#
+# Values marked `sync: false` are NOT stored in the repo — Render prompts for
+# them during blueprint creation. That is deliberate for secrets, and necessary
+# for the two cross-service URLs, because Render blueprints cannot concatenate
+# a scheme onto a `fromService` host value.
+#
+# PLAN NOTES (read before deploying — see DEPLOYMENT.md for the full picture):
+#   * Free web services sleep after 15 min idle; first request then takes ~50s.
+#   * Free Postgres is deleted by Render 30 days after creation.
+#   * Background Workers have NO free tier. campushire-worker is set to
+#     `starter` ($7/mo). Comment it out to deploy fully free — the app still
+#     works; only the scheduled reminder/report emails stop running.
+# ==============================================================================
+
+databases:
+  - name: campushire-db
+    databaseName: campushire
+    user: campushire
+    plan: free
+    postgresMajorVersion: "16"
+
+services:
+  # ── Redis / Key Value — Celery broker + Flask-Caching backend ───────────────
+  - type: keyvalue
+    name: campushire-redis
+    plan: free
+    region: singapore
+    ipAllowList: []          # private network only; nothing external connects
+    # Celery stores task state here. Under an LRU policy Redis may evict a
+    # queued task under memory pressure, which silently loses jobs.
+    maxmemoryPolicy: noeviction
+
+  # ── Flask API ───────────────────────────────────────────────────────────────
+  - type: web
+    name: campushire-api
+    runtime: python
+    plan: free
+    region: singapore
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    # bootstrap_db is idempotent, so running it on every boot is safe. It lives
+    # in startCommand rather than preDeployCommand because preDeploy requires a
+    # paid instance type — on Starter or above, move it there instead.
+    startCommand: python -m scripts.bootstrap_db && gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --threads 4 --timeout 60 --access-logfile - --error-logfile -
+    healthCheckPath: /api/health
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: PYTHON_VERSION
+        value: "3.12.3"
+
+      # Generated once by Render and then held stable. Rotating SECRET_KEY
+      # invalidates every issued auth token; rotating the salt invalidates
+      # every stored password hash.
+      - key: SECRET_KEY
+        generateValue: true
+      - key: SECURITY_PASSWORD_SALT
+        generateValue: true
+
+      - key: DATABASE_URL
+        fromDatabase:
+          name: campushire-db
+          property: connectionString
+
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: campushire-redis
+          property: connectionString
+      - key: CACHE_REDIS_URL
+        fromService:
+          type: keyvalue
+          name: campushire-redis
+          property: connectionString
+
+      # Full origin of the static site, e.g. https://campushire-web.onrender.com
+      # Set both after the first deploy, once Render has assigned the URL.
+      - key: CORS_ORIGINS
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+
+      # Minimum 12 chars. Creates the admin account on first boot only;
+      # afterwards it is ignored (changing it here does NOT reset the password).
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: ADMIN_EMAIL
+        value: admin@campushire.edu
+      - key: COLLEGE_NAME
+        value: CampusHire
+
+      # SMTP. Without these the app boots fine and simply cannot send mail.
+      - key: MAIL_SERVER
+        sync: false
+      - key: MAIL_PORT
+        value: "587"
+      - key: MAIL_USE_TLS
+        value: "true"
+      - key: MAIL_USERNAME
+        sync: false
+      - key: MAIL_PASSWORD
+        sync: false
+      - key: MAIL_DEFAULT_SENDER
+        value: noreply@campushire.edu
+
+  # ── Celery worker + beat ────────────────────────────────────────────────────
+  # NO FREE TIER. Delete this block to deploy entirely on free plans.
+  # Worker and beat share one process via --beat: correct only because there is
+  # exactly one replica. Scaling this service past 1 would run duplicate beat
+  # schedulers and send every reminder email N times.
+  - type: worker
+    name: campushire-worker
+    runtime: python
+    plan: starter
+    region: singapore
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: celery -A celery_config.celery_app worker --beat --loglevel=info --concurrency=2
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: PYTHON_VERSION
+        value: "3.12.3"
+      # Must match the API's values exactly — the worker signs nothing, but it
+      # builds the same Flask app and would fail validation without them.
+      - key: SECRET_KEY
+        fromService:
+          type: web
+          name: campushire-api
+          envVarKey: SECRET_KEY
+      - key: SECURITY_PASSWORD_SALT
+        fromService:
+          type: web
+          name: campushire-api
+          envVarKey: SECURITY_PASSWORD_SALT
+      - key: DATABASE_URL
+        fromDatabase:
+          name: campushire-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: campushire-redis
+          property: connectionString
+      - key: CACHE_REDIS_URL
+        fromService:
+          type: keyvalue
+          name: campushire-redis
+          property: connectionString
+      - key: CORS_ORIGINS
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: COLLEGE_NAME
+        value: CampusHire
+      - key: ADMIN_EMAIL
+        value: admin@campushire.edu
+      - key: MAIL_SERVER
+        sync: false
+      - key: MAIL_PORT
+        value: "587"
+      - key: MAIL_USE_TLS
+        value: "true"
+      - key: MAIL_USERNAME
+        sync: false
+      - key: MAIL_PASSWORD
+        sync: false
+      - key: MAIL_DEFAULT_SENDER
+        value: noreply@campushire.edu
+
+  # ── Vue static site ─────────────────────────────────────────────────────────
+  - type: web
+    name: campushire-web
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: ./dist
+    # Vue Router uses createWebHistory, so deep links like /admin/students are
+    # real URLs the browser requests directly. Without this rewrite the static
+    # host 404s on every path except /.
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    headers:
+      - path: /assets/*
+        name: Cache-Control
+        # Vite fingerprints these filenames, so they are safe to cache forever.
+        value: public, max-age=31536000, immutable
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin
+    envVars:
+      - key: NODE_VERSION
+        # Vite 7 requires Node 20.19+ / 22.12+. On Render's older default the
+        # build fails with "crypto.hash is not a function".
+        value: "20.19.5"
+      # Full API base including scheme and /api suffix, e.g.
+      #   https://campushire-api.onrender.com/api
+      # Inlined into the bundle at build time — changing it needs a rebuild,
+      # not just a restart.
+      - key: VITE_API_BASE_URL
+        sync: false
