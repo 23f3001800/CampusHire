@@ -3,8 +3,9 @@ from datetime import datetime
 from werkzeug.utils import secure_filename
 import os
 
-UPLOAD_FOLDER = 'uploads/resumes'
-ALLOWED_EXT   = {'pdf', 'doc', 'docx'}
+import storage
+
+ALLOWED_EXT = {'pdf', 'doc', 'docx'}
 
 
 def _allowed(filename):
@@ -69,18 +70,19 @@ class StudentService:
         if not _allowed(file.filename):
             return None, 'Only PDF, DOC, DOCX allowed'
 
-        os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-        ext      = secure_filename(file.filename).rsplit('.', 1)[1].lower()
-        filename = f'resume_{student_id}_{int(datetime.utcnow().timestamp())}.{ext}'
-        filepath = os.path.join(UPLOAD_FOLDER, filename)
-        file.save(filepath)
+        resume_dir = storage.subdir(storage.RESUMES)
+        ext        = secure_filename(file.filename).rsplit('.', 1)[1].lower()
+        filename   = f'resume_{student_id}_{int(datetime.utcnow().timestamp())}.{ext}'
+        file.save(os.path.join(resume_dir, filename))
 
         if student.resume_filename:
-            old = os.path.join(UPLOAD_FOLDER, student.resume_filename)
-            if os.path.exists(old):
+            old = storage.path_for(storage.RESUMES, student.resume_filename)
+            if old and os.path.exists(old):
                 os.remove(old)
 
-        student.resume_link     = f'/{UPLOAD_FOLDER}/{filename}'
+        # Served by ResumeServeResource — must match the route registered in
+        # resources/__init__.py, not the on-disk layout.
+        student.resume_link     = f'/api/uploads/resumes/{filename}'
         student.resume_filename = filename
         student.updated_at      = datetime.utcnow()
         db.session.commit()
@@ -92,8 +94,8 @@ class StudentService:
         if not student:
             return False, 'Student not found'
         if student.resume_filename:
-            path = os.path.join(UPLOAD_FOLDER, student.resume_filename)
-            if os.path.exists(path):
+            path = storage.path_for(storage.RESUMES, student.resume_filename)
+            if path and os.path.exists(path):
                 os.remove(path)
         student.resume_link     = None
         student.resume_filename = None

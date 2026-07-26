@@ -1,0 +1,64 @@
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+.venv/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# ── Secrets / local env ───────────────────────────────────────────────────────
+# .env.example and frontend/.env.development are committed on purpose; they hold
+# only local defaults. Anything else that could carry a real credential is not.
+.env
+.env.local
+.env.production
+.env.*.local
+!.env.example
+!frontend/.env.development
+
+# ── Database ──────────────────────────────────────────────────────────────────
+*.sqlite3
+*.db
+instance/
+
+# ── Uploads (user data — never commit resumes or offer letters) ───────────────
+backend/uploads/
+uploads/
+
+# ── Celery ────────────────────────────────────────────────────────────────────
+celerybeat-schedule
+celerybeat-schedule.*
+celerybeat.pid
+*.rdb
+dump.rdb
+
+# ── Node / frontend ───────────────────────────────────────────────────────────
+node_modules/
+dist/
+dist-ssr/
+.vite/
+*.local
+npm-debug.log*
+yarn-error.log*
+
+# ── Logs ──────────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── Editors / OS ──────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+*.swp
+*.swo
+.vscode/*
+!.vscode/extensions.json
+
+# ── Archives / build artifacts ────────────────────────────────────────────────
+*.zip

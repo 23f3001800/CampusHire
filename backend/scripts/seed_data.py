@@ -1,9 +1,27 @@
-import uuid
-import random
-from datetime import datetime, timezone, date, timedelta
-from app import app
-from models import db, User, Student, Company, PlacementDrive, Application
-from flask_security.utils import hash_password
+"""
+seed_data.py — DEVELOPMENT ONLY. Creates dummy students, companies and drives,
+all sharing a well-known password.
+
+Never run this against a real deployment: it would create working accounts whose
+credentials are published in this file.
+"""
+
+import os
+import sys
+
+# Checked before importing app so it fires regardless of environment state.
+if (os.getenv("APP_ENV") or os.getenv("FLASK_ENV") or "development").lower() == "production":
+    sys.exit(
+        "✗ Refusing to run seed_data.py with APP_ENV=production — it creates\n"
+        "  working accounts that all share one seed password."
+    )
+
+import uuid                                                              # noqa: E402
+import random                                                            # noqa: E402
+from datetime import datetime, timezone, date, timedelta                 # noqa: E402
+from app import app                                                      # noqa: E402
+from models import db, User, Student, Company, PlacementDrive, Application  # noqa: E402
+from flask_security.utils import hash_password                           # noqa: E402
 
 def seed_extended_data():
     with app.app_context():
@@ -11,7 +29,9 @@ def seed_extended_data():
         student_role = datastore.find_role("student")
         company_role = datastore.find_role("company")
         
-        TEST_PASSWORD = hash_password('password123')
+        # Override with SEED_PASSWORD to avoid a well-known credential even in
+        # shared dev environments.
+        TEST_PASSWORD = hash_password(os.getenv("SEED_PASSWORD", "changeme-dev-only"))
 
         # ─── 10 STUDENTS ──────────────────────────────────────────────────────
         print("👨‍🎓 Seeding 10 Students...")
