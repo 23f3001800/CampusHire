@@ -14,6 +14,7 @@ from models import (
 )
 
 from extensions import cache
+import storage
 from datetime import datetime, timezone
 import os
 import csv
@@ -856,21 +857,16 @@ class ResumeServeResource(Resource):
     @auth_required('token')
     @roles_accepted('student', 'company', 'admin')
     def get(self, filename):
-
-        base_dir = os.getcwd()
-        upload_dir = os.path.join(base_dir, "uploads", "resumes")
-
-        file_path = os.path.join(upload_dir, filename)
-
-        print("Looking for:", file_path)
-
-        if '..' in filename or '/' in filename:
+        file_path = storage.path_for(storage.RESUMES, filename)
+        if file_path is None:
             return {'message': 'Invalid filename'}, 400
 
         if not os.path.exists(file_path):
             return {'message': 'File not found'}, 404
 
-        return send_from_directory(upload_dir, filename, as_attachment=False)
+        return send_from_directory(
+            storage.subdir(storage.RESUMES), filename, as_attachment=False
+        )
 
 # ─── Offer Letter Upload ───────────────────────────────────────────────────────
 
@@ -891,12 +887,11 @@ class OfferLetterUploadResource(Resource):
         if not offer_file:
             return {'message': 'offer_letter file is required.'}, 400
 
+        if not student_id.isdigit() or not application_id.isdigit():
+            return {'message': 'student_id and application_id must be numeric.'}, 400
+
         filename = f"offer_{application_id}_{student_id}.pdf"
-
-        upload_folder = os.path.join(current_app.root_path, 'uploads', 'offers')
-        os.makedirs(upload_folder, exist_ok=True)
-
-        filepath = os.path.join(upload_folder, filename)
+        filepath = os.path.join(storage.subdir(storage.OFFERS), filename)
         offer_file.save(filepath)
 
         placement = Placement.query.filter_by(
@@ -933,17 +928,15 @@ class OfferLetterDownloadResource(Resource):
     @roles_accepted('student', 'company', 'admin')
     def get(self, filename):
 
-        if '..' in filename or '/' in filename or '\\' in filename:
+        filepath = storage.path_for(storage.OFFERS, filename)
+        if filepath is None:
             return {'message': 'Invalid filename.'}, 400
-
-        upload_folder = os.path.join(current_app.root_path, 'uploads', 'offers')
-        filepath      = os.path.join(upload_folder, filename)
 
         if not os.path.exists(filepath):
             return {'message': 'Offer letter not found.'}, 404
 
         return send_from_directory(
-            upload_folder,
+            storage.subdir(storage.OFFERS),
             filename,
             mimetype='application/pdf',
             as_attachment=False
