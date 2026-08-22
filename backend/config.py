@@ -12,11 +12,16 @@ class Config():
     SQLALCHEMY_TRACK_MODIFICATIONS = True
 
 class DevelopmentConfig(Config):
-    SQLALCHEMY_DATABASE_URI = "sqlite:///campushire.sqlite3?timeout=20"
-    DEBUG = True 
-    SECRET_KEY = "this-is-a-secret-key" 
+    _db = os.getenv("DATABASE_URL", "")
+    if _db.startswith("postgres://"):
+        _db = _db.replace("postgres://", "postgresql+psycopg2://", 1)
+    elif _db.startswith("postgresql://"):
+        _db = _db.replace("postgresql://", "postgresql+psycopg2://", 1)
+    SQLALCHEMY_DATABASE_URI = _db or "sqlite:///campushire.sqlite3?timeout=20"
+    DEBUG = os.getenv("DEBUG", "true").lower() == "true"
+    SECRET_KEY = os.getenv("SECRET_KEY", "this-is-a-secret-key")
     SECURITY_PASSWORD_HASH = "argon2"
-    SECURITY_PASSWORD_SALT = "this-is-a-password-salt"
+    SECURITY_PASSWORD_SALT = os.getenv("SECURITY_PASSWORD_SALT", "this-is-a-password-salt")
     WTF_CSRF_ENABLED = False
     SECURITY_TOKEN_AUTHENTICATION_HEADER = "Authentication-Token"
 
@@ -82,7 +87,7 @@ class DevelopmentConfig(Config):
     }
 
     COLLEGE_NAME           = 'campus hire'
-    FRONTEND_URL           = 'localhost:5173'
+    FRONTEND_URL           = os.getenv('FRONTEND_URL', 'http://localhost:5173').rstrip('/')
     ADMIN_EMAIL            = 'admin@campushire.edu' 
 
     ## caching configuration for development
@@ -90,10 +95,11 @@ class DevelopmentConfig(Config):
     CACHE_REDIS_HOST = os.getenv('CACHE_REDIS_HOST', 'localhost')
     CACHE_REDIS_PORT = int(os.getenv('CACHE_REDIS_PORT', 6379))
     CACHE_REDIS_DB = 1  # Use DB 1 (Celery uses DB 0)
+    CACHE_REDIS_URL = os.getenv('CACHE_REDIS_URL') or os.getenv('REDIS_URL', 'redis://localhost:6379/1')
     CACHE_DEFAULT_TIMEOUT = 300  # 5 minutes default
     CACHE_KEY_PREFIX = 'placement_portal_'
 
 
     # CORS (if needed)
-    #CORS_ORIGINS = os.getenv('CORS_ORIGINS', 'http://localhost:5173').split(',')
+    CORS_ORIGINS = [o.strip() for o in os.getenv('CORS_ORIGINS', 'http://localhost:5173').split(',') if o.strip()]
 
