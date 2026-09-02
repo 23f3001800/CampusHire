@@ -27,6 +27,7 @@ databases:
     databaseName: campushire
     user: campushire
     plan: free
+    region: Oregon
     postgresMajorVersion: "16"
 
 services:
